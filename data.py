@@ -8,6 +8,10 @@ import datetime
 from flask import Response
 
 
+number = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+          '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+
+
 class RequestData(object):
 
     def __init__(self, requestData):
@@ -59,12 +63,14 @@ class RequestData(object):
     def get_record_at(self, index):
         # 获得从后到前第 index 处记录
         assert 0 <= index <= 4
+        if len(self.conversationRecords) == 0:
+            return {'replyUtterance': ''}
         return self.conversationRecords[index]
 
     def get_reply_at(self, index):
         # 获得从后到前第 index 处记录的回答
         assert 0 <= index <= 4
-        return get_record_at(index)['replyUtterance']
+        return self.get_record_at(index)['replyUtterance']
 
     def prints(self):
         print('##############################################################')
@@ -142,6 +148,7 @@ class ReturnData(object):
             'returnErrorSolution': '',
             'returnMessage': ''
         }
+        self.returnValue['resultType'] = 'ASK_INF'
 
     def set_continue(self):
         # 设置回答类型为 ASK_INF，使用户说的下一句话优先进入本意图
