@@ -30,9 +30,9 @@ def _to_dict(data):
     menu['need_time'] = data[3]  # 时间
     menu['flavor'] = data[4]  # 口味
     menu['method'] = data[5]  # 工艺
-    menu['steps'] = data[7].strip().split('#')[:-1]  # 详细步骤
-    menu['ingredients'] = data[9].strip().split('#')[:-1]  # 详细材料
-    menu['ingredientsReply'] = '、'.join(data[9].strip().split('#')[:-1])
+    menu['steps'] = data[7].strip().split('#')  # 详细步骤
+    menu['ingredients'] = data[9].strip().split('#')  # 详细材料
+    menu['ingredientsReply'] = '、'.join(data[9].strip().split('#'))
     return menu
 
 
