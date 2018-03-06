@@ -89,7 +89,7 @@ class RequestData(object):
         for record in self.conversationRecords:
             print('\tintent: ' + record['intentName'])
             print('\tutterance: ' + record['userInputUtterance'])
-            print('\treply: ' + record.get('replyUtterance'))
+            print('\treply: ' + record.get('replyUtterance', 'None'))
             print('\tresult type: ' + record['resultType'])
             print('\tslots: ' + \
                   ' '.join([

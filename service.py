@@ -62,7 +62,7 @@ def get_one_dish():
     if '你要继续做' in data.get_reply_at(0):
         if '好的' in data.utterance \
            or ('不要' not in data.utterance and '要' in data.utterance) \
-           or '是的' in data.utterance \
+           or ('不是' not in data.utterance and '是' in data.utterance)\
            or '恩' in data.utterance \
            or '嗯' in data.utterance:
             # 用户继续做
@@ -70,11 +70,12 @@ def get_one_dish():
             last_step = int(state.split()[1])
             menu = get_menu(dish)
             if last_step == -1:
-                reply = '好的，你刚刚做到准备调料一步：{}'
-                reply = reply.format(menu['ingredientsReply'])
+                reply = '好的，你刚刚在准备调料'
+            #    reply = '好的，你刚刚做到准备调料一步：{}'
+            #    reply = reply.format(menu['ingredientsReply'])
             else:
-                reply = '好的，你已经做到了第 {} 步：{}'.format(
-                    last_step+1, menu['steps'][last_step]
+                reply = '好的，你已经做到了第 {} 步'.format(
+                    last_step+1
                 )
             return ReturnData(reply=reply).pack()
         else:
@@ -230,11 +231,13 @@ def return_ingredient(dish, ingredient):
     """
 
     dish_menu = get_menu(dish)
-    ingredients_names = dish_menu['ingredients'].keys()
+    ingredients_names = dish_menu['ingredients']
+    ingredients_d = {one.split(':')[0]: one.split(':')[1] for one in ingredients_names}
+    ingredients_names = ingredients_d.keys()
     if ingredient not in ingredients_names:
         reply = '对不起，做{}好像用不到{}。'.format(dish, ingredient)
     else:
-        reply = dish_menu['ingredients'][ingredient]
+        reply = ingredients_d[ingredient]
     return ReturnData(reply=reply).pack()
 
 
