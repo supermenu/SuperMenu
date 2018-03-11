@@ -1,0 +1,14 @@
+{% extends "bootstrap/base.html" %}
+{% block title %}SuperMenu{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-inverse">
+     导航
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+        {% block page_content %}{% endblock %}
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block page_content %}
+
+{% if user %}
+<div class="username">
+    <p>Welcome Back, {{ user }}</p>
+</div>
+{% else %}
+    <p><a href={{url_for('login')}}>Login</a></p>
+{% endif %}
+
+{% endblock %}
