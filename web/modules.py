@@ -42,6 +42,13 @@ class User(UserMixin):
         self.db = db
         self.password_hash = self.get_password_hash()
         self.id = self.get_id()
+        if not self.password_hash:
+            self.is_exist = False
+        else:
+            self.is_exist = True
+
+    def exists(self):
+        return self.is_exist
 
     @property
     def password(self):

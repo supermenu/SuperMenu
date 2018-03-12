@@ -48,8 +48,11 @@ def login():
     if action == 'register':
         # 注册
         new_user = User(username, db)
-        new_user.password(password)
-        flash('{} 注册成功'.format(username))
+        if new_user.exists():
+            flash('用户名 {} 已被注册'.format(username))
+        else:
+            new_user.password(password)
+            flash('{} 注册成功'.format(username))
         return render_template('login.html')
     elif action == 'login':
         # 登录
@@ -57,6 +60,15 @@ def login():
         if user.verify_password(password):
             login_user(user)
             return redirect(url_for('index'))
+        else:
+            flash('用户名或密码无效')
+            return render_template('login.html')
+
+@app.route('/logout/')
+@login_required
+def logout():
+    logout_user()
+    return render_template('index.html')
 
 
 # 这个callback函数用于reload User object，根据session中存储的user id
