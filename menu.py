@@ -3,13 +3,20 @@
 
 
 import pymysql
+from web.modules import DataBase
 
 
-db = pymysql.connect('localhost', 'fwwb', 'fwwb1111', 'super_menu', charset='utf8')
+db = pymysql.connect(
+    'localhost',
+    DataBase.default_user,
+    DataBase.default_password,
+    DataBase.default_database,
+    charset='utf8'
+)
 cursor = db.cursor()
-fetch_all_menus_sql = 'select * from `menu`'
-fetch_all_menu_names_sql = 'select `菜名` from `menu`'
-fetch_by_name_sql = "select * from `menu` where `菜名`='{0}'"
+fetch_all_menus_sql = 'select * from `menus`'
+fetch_all_menu_names_sql = 'select `name` from `menus`'
+fetch_by_name_sql = "select * from `menus` where `name`='{0}'"
 
 
 menu_dict_example = {
@@ -26,13 +33,17 @@ def _to_dict(data):
 
     menu = {}
     menu['name'] = data[1]  # 菜名
-    menu['easiness'] = data[2]  # 难度
-    menu['need_time'] = data[3]  # 时间
-    menu['flavor'] = data[4]  # 口味
-    menu['method'] = data[5]  # 工艺
-    menu['steps'] = data[7].strip().split('#')  # 详细步骤
-    menu['ingredients'] = data[9].strip().split('#')  # 详细材料
-    menu['ingredientsReply'] = '、'.join(data[9].strip().split('#'))
+    menu['flavor'] = data[2]  # 口味
+    menu['method'] = data[3]  # 工艺
+    menu['need_time'] = data[4]  # 时间
+    menu['easiness'] = data[5]  # 难度
+    menu['steps'] = data[6].strip().split('#')  # 详细步骤
+    menu['ingredients'] = data[7].strip().split('#')  # 详细材料
+    menu['ingredients'] = {
+        one.split(':')[0]: one.split(':')[1]
+        for one in menu['ingredients']
+    }
+    menu['ingredientsReply'] = '、'.join(data[7].strip().split('#'))
     return menu
 
 

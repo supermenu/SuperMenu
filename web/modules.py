@@ -13,21 +13,39 @@ import uuid
 
 class DataBase():
 
-    def __init__(self, user, passwd, database=None,
+    default_user = 'root'
+    default_password = 'sql2017..'
+    default_database = 'SuperMenu'
+
+    def __init__(self, user=None, passwd=None, database=None,
                  host='localhost', charset='utf8'):
+        if not user:
+            user = DataBase.default_user
+        if not passwd:
+            passwd = DataBase.default_password
+        if not database:
+            database = DataBase.default_database
         self.db = pymysql.connect(
             host, user, passwd, database, charset=charset)
         self.cursor = self.db.cursor()
 
     def execute(self, sql):
-        self.cursor.execute(sql)
-        self.db.commit()
+        try:
+            self.cursor.execute(sql)
+            self.db.commit()
+            return True
+        except:
+            self.db.rollback()
+            return False
 
     def query_all(self, sql):
         num = self.cursor.execute(sql)
         if num == 0:
             return None
         return self.cursor.fetchall()
+
+    def disconnect(self):
+        self.db.close()
 
 
 class User(UserMixin):
@@ -36,6 +54,18 @@ class User(UserMixin):
         "INSERT INTO `users` (`username`, `password_hash`, `userid`) " \
         "VALUES ('{}', '{}', '{}');"
     get_user_sql = "SELECT * FROM `users` WHERE `{}`='{}'"
+    get_value_sql = "SELECT {} FROM `users` WHERE `{}`='{}'"
+    set_value_sql = "UPDATE `users` SET `{}`='{}' WHERE `{}`='{}'"
+
+    @classmethod
+    def get_user_by(cls, key, value, db):
+        """ return None or User instance """
+        sql = cls.get_user_sql.format(key, value)
+        user = db.query_all(sql)
+        if not user:
+            return None
+        else:
+            return User(user[0][1], db)
 
     def __init__(self, username, db):
         self.username = username
@@ -46,6 +76,7 @@ class User(UserMixin):
             self.is_exist = False
         else:
             self.is_exist = True
+        self.nickname = self.get_nickname()
 
     def exists(self):
         return self.is_exist
@@ -101,6 +132,64 @@ class User(UserMixin):
             except ValueError:
                 pass
         return str(uuid.uuid4())
+
+    def get_nickname(self):
+        if not self.is_exist:
+            return ''
+        else:
+            nickname = self.db.query_all(
+                User.get_value_sql.format(
+                    'nickname', 'username', self.username
+                )
+            )
+            nickname = nickname[0][0]
+            return nickname
+
+    def is_cooking(self):
+        return self.get_cooking().get('success', False)
+
+    def get_cooking(self):
+        cookings = self.db.query_all(
+            User.get_value_sql.format(
+                'cooking', 'username', self.username)
+        )
+        if cookings[0][0]:
+            cooking = cookings[0][0]
+            step = self.db.query_all(
+                User.get_value_sql.format(
+                    'cooking_step', 'username', self.username)
+            )
+            step = int(step[0][0])
+            return {'cooking': cooking, 'step': step, 'success': 1}
+        else:
+            cooking = None
+            return {'cooking': '', 'step': '', 'fail': 1}
+
+    def set_cooking(self, dish):
+        sql = User.set_value_sql.format(
+            'cooking', dish, 'username', self.username)
+        return self.db.execute(sql)
+
+    def set_cooking_step(self, step):
+        sql = User.set_value_sql.format(
+            'cooking_step', step, 'username', self.username)
+        return self.db.execute(sql)
+
+    def reset_cooking(self):
+        return self.set_cooking('') and self.set_cooking_step('')
+
+    def finish_cooking(self, dish):
+        sql = User.get_value_sql.format('cooked', 'username', self.username)
+        cooked = self.db.query_all(sql)
+        if not cooked:
+            sql = User.set_value_sql.\
+                    format('cooked', dish, 'username', self.username)
+        else:
+            cooked = cooked[0].split('#')
+            cooked.append(dish)
+            cooked = '#',join(cooked)
+            sql = User.set_value_sql.\
+                    format('cooked', cooked)
 
     @staticmethod
     def get(user_id, db):

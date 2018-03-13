@@ -8,6 +8,10 @@ import datetime
 from flask import Response
 
 
+number = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+           '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+
+
 class RequestData(object):
 
     def __init__(self, requestData):
@@ -52,6 +56,8 @@ class RequestData(object):
         # value:        str, 具体的值
         self.sessionEntries = requestData['sessionEntries']
 
+        self.token = requestData.get('token', None)
+
     def get_last_intent(self):
         # 获得最后一条记录的实体
         return self.conversationRecords[0]['intentName']
@@ -59,17 +65,20 @@ class RequestData(object):
     def get_record_at(self, index):
         # 获得从后到前第 index 处记录
         assert 0 <= index <= 4
+        if len(self.conversationRecords) == 0:
+            return {'replyUtterance': ''}
         return self.conversationRecords[index]
 
     def get_reply_at(self, index):
         # 获得从后到前第 index 处记录的回答
         assert 0 <= index <= 4
-        return get_record_at(index)['replyUtterance']
+        return self.get_record_at(index)['replyUtterance']
 
     def prints(self):
         print('##############################################################')
         print('create time: ' + self.createTime)
         print('session id:' + self.sessionId)
+        print('token:' + str(self.token))
         print('utterance: ' + self.utterance)
         print('intent: ' + self.intentName)
         print('slot:')
@@ -83,7 +92,7 @@ class RequestData(object):
         for record in self.conversationRecords:
             print('\tintent: ' + record['intentName'])
             print('\tutterance: ' + record['userInputUtterance'])
-            print('\treply: ' + record.get('replyUtterance'))
+            print('\treply: ' + record.get('replyUtterance', 'None'))
             print('\tresult type: ' + record['resultType'])
             print('\tslots: ' + \
                   ' '.join([
@@ -142,6 +151,7 @@ class ReturnData(object):
             'returnErrorSolution': '',
             'returnMessage': ''
         }
+        self.returnValue['resultType'] = 'ASK_INF'
 
     def set_continue(self):
         # 设置回答类型为 ASK_INF，使用户说的下一句话优先进入本意图

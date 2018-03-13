@@ -22,8 +22,20 @@
                 <label for="passworld">密码</label>
                 <input type="password" class="form-control" name="password" placeholder="请输入密码">
             </div>
+            {% if register %}
+            <div class="form-group">
+                <label for="nickname">昵称</label>
+                <input type="text" class="form-control" name="nickname" placeholder="请输入昵称（由中文组成）">
+            </div>
+            {% endif %}
+            {% if login %}
             <button type="submit" name="button" class="btn btn-default" value='login'>登录</button>
+            <button name="button" name="button" class="btn btn-default" value='toregister'>去注册 -></button>
+            {% endif %}
+            {% if register %}
             <button type="submit" name="button" class="btn btn-default" value='register'>注册</button>
+            <button name="button" name="button" class="btn btn-default" value='tologin'>去登录 -></button>
+            {% endif %}
         </form>
     </div>
 {% endblock %}

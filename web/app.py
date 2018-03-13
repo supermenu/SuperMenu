@@ -19,7 +19,7 @@ from modules import User, DataBase
 
 app.secret_key = os.urandom(24)
 bootstrap = Bootstrap(app)
-db = DataBase('root', 'sql2017..', 'SuperMenu')
+db = DataBase()
 
 
 @app.route('/')
@@ -35,36 +35,57 @@ def index():
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
-    # 展示登录界面
     if request.method == 'GET':
-        return render_template('login.html')
+        return render_template('login.html', login=True)
     username = request.form.get('username')
     password = request.form.get('password')
+    nickname = request.form.get('nickname')
     action = request.form.get('button')
+    if action == 'toregister':
+        return redirect(url_for('register'))
     if not username:
         flash('请填写用户名')
         return render_template('login.html')
     elif not password:
         flash('请填写密码')
         return render_template('login.html')
-    if action == 'register':
-        # 注册
-        new_user = User(username, db)
-        if new_user.exists():
-            flash('用户名 {} 已被注册'.format(username))
-        else:
-            new_user.password(password)
-            flash('{} 注册成功'.format(username))
+
+    user = User(username, db)
+    if user.verify_password(password):
+        login_user(user)
+        return redirect(url_for('index'))
+    else:
+        flash('用户名或密码无效')
         return render_template('login.html')
-    elif action == 'login':
-        # 登录
-        user = User(username, db)
-        if user.verify_password(password):
-            login_user(user)
-            return redirect(url_for('index'))
-        else:
-            flash('用户名或密码无效')
-            return render_template('login.html')
+
+@app.route('/register/', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        return render_template('login.html', register=True)
+    username = request.form.get('username')
+    password = request.form.get('password')
+    nickname = request.form.get('nickname')
+    action = request.form.get('button')
+    if action == 'tologin':
+        return redirect(url_for('login'))
+    if not username:
+        flash('请填写用户名')
+        return render_template('login.html', register=True)
+    elif not password:
+        flash('请填写密码')
+        return render_template('login.html', register=True)
+    elif not nickname:
+        flash('请填写昵称')
+        return render_template('login.html', register=True)
+
+    new_user = User(username, db)
+    if new_user.exists():
+        flash('用户名 {} 已被注册'.format(username))
+        return render_template('login.html', register=True)
+    else:
+        new_user.password(password)
+        flash('{} 注册成功'.format(username))
+        return redirect(url_for('login'))
 
 @app.route('/logout/')
 @login_required
