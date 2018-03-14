@@ -29,27 +29,14 @@ def get_one_dish():
     # 打印平台发送的数据
     data.prints()
 
-    # 因为平台发送请求过来
-    # 有没有token，有没有用户
-    # 查询 cooking
-
-    # cooking 为空:
-    # 若用户未开始做一个特定的菜
-    #     若平台识别不出用户回答的句子中有 dish 实体
-    #         则服务器应当询问用户做什么菜 ---------------------- 情况 1
-    #     若用户回答了一个菜名被平台识别
-    #         则服务器返回给用户菜肴准备步骤（调料等） ---------- 情况 2
-    #         更新 cooking ，cooking_step
-
-    # 若用户已经开始做一个特定的菜
-    #     查询cooking， cooking_step  -------------- 情况 3
-
     # check user token
     if not data.token:
         return ReturnData(reply='请先登录 SuperMenu 账号').pack()
     else:
         user = User.get_user_by('access_token', data.token, db)
         if not user:
+            print('user can not recognize')
+            print(user, data.token)
             return ReturnData(
                 reply='当前用户登录已失效或用户登录错误，请重新登录').pack()
 
@@ -134,7 +121,7 @@ def get_one_dish():
             # user asking steps
             if last_step + 1 == len(menu['steps']):
                 reply = '你已经做完了{}'.format(dish)
-                user.reset_cooking()
+                user.finish_cooking()
             else:
                 reply = menu['steps'][last_step+1]
                 user.set_cooking_step(last_step+1)

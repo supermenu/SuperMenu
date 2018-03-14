@@ -51,8 +51,8 @@ class DataBase():
 class User(UserMixin):
 
     add_user_sql = \
-        "INSERT INTO `users` (`username`, `password_hash`, `userid`) " \
-        "VALUES ('{}', '{}', '{}');"
+        "INSERT INTO `users` (`username`, `password_hash`, `userid`, `nickname`) " \
+        "VALUES ('{}', '{}', '{}', '{}');"
     get_user_sql = "SELECT * FROM `users` WHERE `{}`='{}'"
     get_value_sql = "SELECT {} FROM `users` WHERE `{}`='{}'"
     set_value_sql = "UPDATE `users` SET `{}`='{}' WHERE `{}`='{}'"
@@ -67,7 +67,7 @@ class User(UserMixin):
         else:
             return User(user[0][1], db)
 
-    def __init__(self, username, db):
+    def __init__(self, username, db, nickname=None):
         self.username = username
         self.db = db
         self.password_hash = self.get_password_hash()
@@ -76,7 +76,10 @@ class User(UserMixin):
             self.is_exist = False
         else:
             self.is_exist = True
-        self.nickname = self.get_nickname()
+        if not nickname:
+            self.nickname = self.get_nickname()
+        else:
+            self.nickname = nickname
 
     def exists(self):
         return self.is_exist
@@ -91,7 +94,7 @@ class User(UserMixin):
         self.password_hash = generate_password_hash(password)
         self.db.execute(
             User.add_user_sql.format(
-                self.username, self.password_hash, self.id)
+                self.username, self.password_hash, self.id, self.nickname)
         )
 
     def verify_password(self, password):
@@ -190,6 +193,7 @@ class User(UserMixin):
             cooked = '#',join(cooked)
             sql = User.set_value_sql.\
                     format('cooked', cooked)
+        return self.db.execute(sql)
 
     @staticmethod
     def get(user_id, db):
@@ -209,3 +213,16 @@ class User(UserMixin):
             print(format_exc())
             return None
         return None
+
+
+class AnonymousUser(User):
+
+    def __init__(self, session_id, db):
+        username = str(abs(hash(str(time.time()))))
+        password = str(abs(hash(str(time.time())+username)))
+        super(AnonymousUser, self).__init__(username, db, nickname='游客')
+        self.password(password)
+        sql = User.set_value_sql.\
+                format('access_token', session_id, 'username', username)
+        db.execute(sql)
+

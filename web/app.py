@@ -78,7 +78,7 @@ def register():
         flash('请填写昵称')
         return render_template('login.html', register=True)
 
-    new_user = User(username, db)
+    new_user = User(username, db, nickname=nickname)
     if new_user.exists():
         flash('用户名 {} 已被注册'.format(username))
         return render_template('login.html', register=True)
@@ -102,7 +102,7 @@ def load_user(user_id):
 def authorize():
     if request.method == 'GET':
         if request.args.get('client_id') == 'supermenu':
-            return render_template('login.html')
+            return render_template('login.html', authorize=True)
     elif request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
