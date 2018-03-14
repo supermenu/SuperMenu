@@ -7,11 +7,23 @@ from flask import request
 
 from data import ReturnData, RequestData, number
 from menu import *
-from web.modules import User, DataBase
+from web.modules import User, DataBase, AnonymousUser
 
 
 app = Flask(__name__)
 db = DataBase()
+
+
+def is_answer_positive(utterance):
+    if '好的' in utterance \
+       or '好' in utterance \
+       or ('不要' not in utterance and '要' in utterance) \
+       or ('不是' not in utterance and '是' in utterance)\
+	   or ('不做' not in utterance and '做' in utterance)\
+       or '恩' in utterance \
+       or '嗯' in utterance:
+        return True
+    return False
 
 
 @app.route('/', methods=['GET'])
@@ -31,7 +43,19 @@ def get_one_dish():
 
     # check user token
     if not data.token:
-        return ReturnData(reply='请先登录 SuperMenu 账号').pack()
+        # try with anonymous user
+        user = User.get_user_by('access_token', data.sessionId, db)
+        if not user:
+            if '游客身份' in data.get_reply_at(0):
+                if is_answer_positive(data.utterance):
+                    new_anonymous_user = AnonymousUser(data.sessionId, db)
+                    reply = '您现在使用游客账户登录，当您一段时间没有使用' \
+                            '本技能时，账户数据会清空，现在你要做什么呢'
+                else:
+                    reply = '请登录SuperMenu账号'
+            else:
+                reply= '您还未登录SuperMenu账号，用游客身份登录吗？'
+            return ReturnData(reply=reply).pack()
     else:
         user = User.get_user_by('access_token', data.token, db)
         if not user:
@@ -63,11 +87,7 @@ def get_one_dish():
 
     # check whether user want to continue cooking if user didn't complete one
     if '你要继续做' in data.get_reply_at(0):
-        if '好的' in data.utterance \
-           or ('不要' not in data.utterance and '要' in data.utterance) \
-           or ('不是' not in data.utterance and '是' in data.utterance)\
-           or '恩' in data.utterance \
-           or '嗯' in data.utterance:
+        if is_answer_positive(data.utterance):
             # user continue cooking
             menu = get_menu(dish)
             if last_step == -1:
@@ -121,7 +141,7 @@ def get_one_dish():
             # user asking steps
             if last_step + 1 == len(menu['steps']):
                 reply = '你已经做完了{}'.format(dish)
-                user.finish_cooking()
+                user.finish_cooking(dish)
             else:
                 reply = menu['steps'][last_step+1]
                 user.set_cooking_step(last_step+1)

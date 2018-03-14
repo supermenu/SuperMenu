@@ -65,7 +65,8 @@ class RequestData(object):
     def get_record_at(self, index):
         # 获得从后到前第 index 处记录
         assert 0 <= index <= 4
-        if len(self.conversationRecords) == 0:
+        if len(self.conversationRecords) == 0 \
+           or len(self.conversationRecords) < index + 1:
             return {'replyUtterance': ''}
         return self.conversationRecords[index]
 

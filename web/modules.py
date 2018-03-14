@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash
 from flask_login import UserMixin
 from traceback import format_exc
 import json
+import time
 import uuid
 
 
@@ -19,30 +20,56 @@ class DataBase():
 
     def __init__(self, user=None, passwd=None, database=None,
                  host='localhost', charset='utf8'):
-        if not user:
-            user = DataBase.default_user
-        if not passwd:
-            passwd = DataBase.default_password
-        if not database:
-            database = DataBase.default_database
-        self.db = pymysql.connect(
-            host, user, passwd, database, charset=charset)
+        self.user = DataBase.default_user if not user else user
+        self.passwd = DataBase.default_password if not passwd else passwd
+        self.database = DataBase.default_database if not database else database
+        self.host = host
+        self.charset = charset
+        self.db = pymysql.connect(self.host, self.user, self.passwd,
+                                  self.database, charset=self.charset)
         self.cursor = self.db.cursor()
+        self.last_error_time = -1
 
     def execute(self, sql):
         try:
             self.cursor.execute(sql)
             self.db.commit()
             return True
+        except pymysql.err.OperationalError as e:
+            if 'BrokenPipeError' in str(e):
+                error_time = time.time()
+                if error_time - self.last_error_time > 10:
+                    self.last_error_time = error_time
+                    return self.reconnect(self.execute, sql)
+            self.db.rollback()
+            raise e
         except:
             self.db.rollback()
-            return False
+            raise e
 
     def query_all(self, sql):
-        num = self.cursor.execute(sql)
+        try:
+            num = self.cursor.execute(sql)
+        except pymysql.err.OperationalError as e:
+            if 'BrokenPipeError' in str(e):
+                error_time = time.time()
+                if error_time - self.last_error_time > 10:
+                    self.last_error_time = error_time
+                    return self.reconnect(self.query_all, sql)
+            self.db.rollback()
+            raise e
+        except:
+            self.db.rollback()
+            raise e
         if num == 0:
             return None
         return self.cursor.fetchall()
+
+    def reconnect(self, re_execute, sql):
+        self.db = pymysql.connect(self.host, self.user, self.passwd,
+                                  self.database, charset=self.charset)
+        self.cursor = self.db.cursor()
+        re_execute(sql)
 
     def disconnect(self):
         self.db.close()
@@ -182,17 +209,20 @@ class User(UserMixin):
         return self.set_cooking('') and self.set_cooking_step('')
 
     def finish_cooking(self, dish):
+        self.reset_cooking()
         sql = User.get_value_sql.format('cooked', 'username', self.username)
         cooked = self.db.query_all(sql)
-        if not cooked:
+        cooked = cooked[0][0]
+        if cooked is None:
             sql = User.set_value_sql.\
                     format('cooked', dish, 'username', self.username)
         else:
-            cooked = cooked[0].split('#')
-            cooked.append(dish)
-            cooked = '#',join(cooked)
+            cooked = cooked.split('#')
+            if dish not in cooked:
+                cooked.append(dish)
+            cooked = '#'.join(cooked)
             sql = User.set_value_sql.\
-                    format('cooked', cooked)
+                    format('cooked', cooked, 'username', self.username)
         return self.db.execute(sql)
 
     @staticmethod
@@ -225,4 +255,5 @@ class AnonymousUser(User):
         sql = User.set_value_sql.\
                 format('access_token', session_id, 'username', username)
         db.execute(sql)
-
+        print('anonymous user {} created with session-id {}'.\
+              format(username, session_id))
