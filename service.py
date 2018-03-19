@@ -91,6 +91,7 @@ def get_one_dish():
     new_slots_values = [slot['standardValue'] for slot in new_slots]
 
     # check whether user want to continue cooking if user didn't complete one
+    # if dish appears in new slots names, means user want to change cooking
     if '你要继续做' in data.get_reply_at(0) and 'dish' not in new_slots_names:
         if is_answer_positive(data.utterance):
             # user continue cooking
@@ -108,10 +109,7 @@ def get_one_dish():
             # user not continue cooking
             user.reset_cooking()
             return ReturnData(reply='你要做什么呢').pack()
-    else:
-        print('user choose to cook another dish ranther continue')
-        user.reset_cooking()
-        is_cooking = user.is_cooking()
+
     # ========================================================================
 
     if not is_cooking:
@@ -122,26 +120,24 @@ def get_one_dish():
         # 因此若平台识别出 dish 实体，则代表数据库中必有此菜单
         # TODO:但是仍在 prepare_menu 中检测数据库中是否有此菜单
 
-        print(slots_names)
         if 'dish' in slots_names:
             # user reply dish name
             dish = slots_values[slots_names.index('dish')]
-
-            # 从数据库中获得现在支持的菜单
-            existed_menus = get_existed_menus()
-            if dish not in existed_menus:   # 菜名不在数据库中
-                return ReturnData(reply='现在没有提供该菜肴菜谱').pack()
-            else:
-                menu = get_menu(dish)
-
-            user.set_cooking(dish)
-            user.set_cooking_step(-1)
-            return prepare_menu(menu)
+            return begin_cook(user, dish)
         else:
             # user reply no dish name
             return ReturnData(reply='现在没有提供该菜肴菜谱').pack()
     else:
         # user is cooking now
+
+        if 'dish' in new_slots_names:
+            # user want to change what is cooking
+            print('user want to change cooking')
+            dish = new_slots_values[new_slots_names.index('dish')]
+            # TODO: if new dish not exists
+            #       ask user whether continue original dish
+            return begin_cook(user, dish)
+
         menu = get_menu(dish)
         if 'ingredients' in new_slots_names:
             # user asking ingredients
@@ -190,6 +186,28 @@ def get_one_dish():
             return ReturnData(reply='这一步做好了跟我说哦').pack()
         else:
             return ReturnData(reply='不明白您的意思').pack()
+
+
+def begin_cook(user, dish):
+
+    # test whether dish is in db
+    # if dish in db, set user's cooking ingo
+    # else, return no dish reply
+
+    # 从数据库中获得现在支持的菜单
+    existed_menus = get_existed_menus()
+    if dish not in existed_menus:   # 菜名不在数据库中
+        menu = None
+    else:
+        menu = get_menu(dish)
+    user.set_cooking(dish)
+    user.set_cooking_step(-1)
+    print('user {} begins to cook {}'.format(user.username, dish))
+
+    if not menu:
+        return ReturnData(reply='现在没有提供该菜肴菜谱').pack()
+    else:
+        return prepare_menu(menu)
 
 
 def prepare_menu(dish_menu):
