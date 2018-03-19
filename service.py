@@ -18,8 +18,8 @@ def is_answer_positive(utterance):
     if '好的' in utterance \
        or '好' in utterance \
        or ('不要' not in utterance and '要' in utterance) \
-       or ('不是' not in utterance and '是' in utterance)\
-	   or ('不做' not in utterance and '做' in utterance)\
+       or ('不是' not in utterance and '是' in utterance) \
+       or ('不做' not in utterance and '做' in utterance) \
        or '恩' in utterance \
        or '嗯' in utterance:
         return True
@@ -46,15 +46,10 @@ def get_one_dish():
         # try with anonymous user
         user = User.get_user_by('access_token', data.sessionId, db)
         if not user:
-            if '游客身份' in data.get_reply_at(0):
-                if is_answer_positive(data.utterance):
-                    new_anonymous_user = AnonymousUser(data.sessionId, db)
-                    reply = '您现在使用游客账户登录，当您一段时间没有使用' \
-                            '本技能时，账户数据会清空，现在你要做什么呢'
-                else:
-                    reply = '请登录SuperMenu账号'
-            else:
-                reply= '您还未登录SuperMenu账号，用游客身份登录吗？'
+            new_anonymous_user = AnonymousUser(data.sessionId, db)
+            reply = '您现在没有登录SuperMenu，自动分配一个游客账户登录，' \
+                    '当您一段时间没有使用本技能时，账户数据会清空，' \
+                    '现在你要做什么呢'
             return ReturnData(reply=reply).pack()
     else:
         user = User.get_user_by('access_token', data.token, db)
@@ -105,8 +100,11 @@ def get_one_dish():
             return ReturnData(reply='你要做什么呢').pack()
     # ========================================================================
 
-    # 若实体的 livetime 是0， 则代表这个实体是第一次被识别
     slotentities = data.slotEntities
+    slots = [slot for slot in slotentities]
+    slots_names = [slot['intentParameterName'] for slot in slots]
+    slots_values = [slot['standardValue'] for slot in slots]
+    # 若实体的 livetime 是0， 则代表这个实体是第一次被识别
     new_slots = [slot for slot in slotentities if slot['liveTime'] == 0]
     new_slots_names = [slot['intentParameterName'] for slot in new_slots]
     new_slots_values = [slot['standardValue'] for slot in new_slots]
@@ -119,9 +117,9 @@ def get_one_dish():
         # 因此若平台识别出 dish 实体，则代表数据库中必有此菜单
         # TODO:但是仍在 prepare_menu 中检测数据库中是否有此菜单
 
-        if 'dish' in new_slots_names:
+        if 'dish' in slots_names:
             # user reply dish name
-            dish = new_slots_values[new_slots_names.index('dish')]
+            dish = slots_values[slots_names.index('dish')]
             user.set_cooking(dish)
             user.set_cooking_step(-1)
             return prepare_menu(dish)
@@ -176,6 +174,8 @@ def get_one_dish():
             return ReturnData(reply=reply).pack()
         elif '好的' in data.utterance:
             return ReturnData(reply='这一步做好了跟我说哦').pack()
+        else:
+            return ReturnData(reply='不明白您的意思').pack()
 
 
 def prepare_menu(dish):

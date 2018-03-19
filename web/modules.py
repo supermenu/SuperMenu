@@ -35,12 +35,13 @@ class DataBase():
             self.cursor.execute(sql)
             self.db.commit()
             return True
-        except pymysql.err.OperationalError as e:
-            if 'BrokenPipeError' in str(e):
-                error_time = time.time()
-                if error_time - self.last_error_time > 10:
-                    self.last_error_time = error_time
-                    return self.reconnect(self.execute, sql)
+        except (BrokenPipeError,
+                pymysql.err.OperationalError, pymysql.err.InterfaceError) as e:
+            error_time = time.time()
+            print(str(e))
+            if error_time - self.last_error_time > 10:
+                self.last_error_time = error_time
+                return self.reconnect(self.execute, sql)
             self.db.rollback()
             raise e
         except:
@@ -50,19 +51,20 @@ class DataBase():
     def query_all(self, sql):
         try:
             num = self.cursor.execute(sql)
-        except pymysql.err.OperationalError as e:
-            if 'BrokenPipeError' in str(e):
-                error_time = time.time()
-                if error_time - self.last_error_time > 10:
-                    self.last_error_time = error_time
-                    return self.reconnect(self.query_all, sql)
-            self.db.rollback()
+        except (BrokenPipeError,
+                pymysql.err.InterfaceError, pymysql.err.OperationalError) as e:
+            print(str(e))
+            error_time = time.time()
+            if error_time - self.last_error_time > 10:
+                self.last_error_time = error_time
+                return self.reconnect(self.query_all, sql)
             raise e
         except:
-            self.db.rollback()
             raise e
         if num == 0:
-            return None
+            print('num=0:')
+            print(str(self.cursor.fetchall()))
+            return []
         return self.cursor.fetchall()
 
     def reconnect(self, re_execute, sql):
@@ -139,7 +141,7 @@ class User(UserMixin):
         try:
             user_info = self.db.query_all(
                 User.get_user_sql.format('username', self.username))
-            if user_info is not None:
+            if user_info:
                 return user_info[0][2]
         except IOError:
             return None
@@ -155,7 +157,7 @@ class User(UserMixin):
             try:
                 userinfo = self.db.query_all(
                     User.get_user_sql.format('username', self.username))
-                if userinfo is not None:
+                if userinfo:
                     return userinfo[0][3]
             except IOError:
                 pass

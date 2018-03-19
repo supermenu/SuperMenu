@@ -6,14 +6,7 @@ import pymysql
 from web.modules import DataBase
 
 
-db = pymysql.connect(
-    'localhost',
-    DataBase.default_user,
-    DataBase.default_password,
-    DataBase.default_database,
-    charset='utf8'
-)
-cursor = db.cursor()
+db = DataBase()
 fetch_all_menus_sql = 'select * from `menus`'
 fetch_all_menu_names_sql = 'select `name` from `menus`'
 fetch_by_name_sql = "select * from `menus` where `name`='{0}'"
@@ -48,13 +41,11 @@ def _to_dict(data):
 
 
 def get_existed_menus():
-    cursor.execute(fetch_all_menu_names_sql)
-    menu_names = cursor.fetchall()
+    menu_names = db.query_all(fetch_all_menu_names_sql)
     return [menu_name[0] for menu_name in menu_names]
 
 def get_menu(dish):
-    cursor.execute(fetch_by_name_sql.format(dish))
-    menus = cursor.fetchall()
+    menus = db.query_all(fetch_by_name_sql.format(dish))
     return _to_dict(menus[0])
 
 def get_step_index_in_menu(dish, step):
