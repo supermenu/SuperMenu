@@ -80,8 +80,18 @@ def get_one_dish():
             return ReturnData(
                 '你好，{}，你要做什么呢'.format(user.nickname)).pack()
 
+    slotentities = data.slotEntities
+    slots = [slot for slot in slotentities]
+    slots = sorted(slots, key=lambda x: x['liveTime'])
+    slots_names = [slot['intentParameterName'] for slot in slots]
+    slots_values = [slot['standardValue'] for slot in slots]
+    # 若实体的 livetime 是0， 则代表这个实体是第一次被识别
+    new_slots = [slot for slot in slotentities if slot['liveTime'] == 0]
+    new_slots_names = [slot['intentParameterName'] for slot in new_slots]
+    new_slots_values = [slot['standardValue'] for slot in new_slots]
+
     # check whether user want to continue cooking if user didn't complete one
-    if '你要继续做' in data.get_reply_at(0):
+    if '你要继续做' in data.get_reply_at(0) and 'dish' not in new_slots_names:
         if is_answer_positive(data.utterance):
             # user continue cooking
             menu = get_menu(dish)
@@ -98,16 +108,11 @@ def get_one_dish():
             # user not continue cooking
             user.reset_cooking()
             return ReturnData(reply='你要做什么呢').pack()
+    else:
+        print('user choose to cook another dish ranther continue')
+        user.reset_cooking()
+        is_cooking = user.is_cooking()
     # ========================================================================
-
-    slotentities = data.slotEntities
-    slots = [slot for slot in slotentities]
-    slots_names = [slot['intentParameterName'] for slot in slots]
-    slots_values = [slot['standardValue'] for slot in slots]
-    # 若实体的 livetime 是0， 则代表这个实体是第一次被识别
-    new_slots = [slot for slot in slotentities if slot['liveTime'] == 0]
-    new_slots_names = [slot['intentParameterName'] for slot in new_slots]
-    new_slots_values = [slot['standardValue'] for slot in new_slots]
 
     if not is_cooking:
         # user not cook anything, should return some dish
@@ -117,12 +122,21 @@ def get_one_dish():
         # 因此若平台识别出 dish 实体，则代表数据库中必有此菜单
         # TODO:但是仍在 prepare_menu 中检测数据库中是否有此菜单
 
+        print(slots_names)
         if 'dish' in slots_names:
             # user reply dish name
             dish = slots_values[slots_names.index('dish')]
+
+            # 从数据库中获得现在支持的菜单
+            existed_menus = get_existed_menus()
+            if dish not in existed_menus:   # 菜名不在数据库中
+                return ReturnData(reply='现在没有提供该菜肴菜谱').pack()
+            else:
+                menu = get_menu(dish)
+
             user.set_cooking(dish)
             user.set_cooking_step(-1)
-            return prepare_menu(dish)
+            return prepare_menu(menu)
         else:
             # user reply no dish name
             return ReturnData(reply='现在没有提供该菜肴菜谱').pack()
@@ -178,7 +192,7 @@ def get_one_dish():
             return ReturnData(reply='不明白您的意思').pack()
 
 
-def prepare_menu(dish):
+def prepare_menu(dish_menu):
 
     """ 情况 3: 用户第一次回答菜名，返回菜肴准备步骤
         参数:
@@ -187,24 +201,14 @@ def prepare_menu(dish):
             打包好的 json 数据
     """
 
-    # 从数据库中获得现在支持的菜单
-    existed_menus = get_existed_menus()
-
     # 用 returndata 构造一个返回数据
     return_data = ReturnData()
 
-    if dish not in existed_menus:   # 菜名不在数据库中
-        return_data.set_reply('现在没有提供该菜肴菜谱')
-        return_data.set_return_code(0)
-    else:                           # 菜名在数据库中
-        # 获得菜名对应菜单
-        dish_menu = get_menu(dish)
-        reply = '好的，让我们开始做{}吧，总共有{}步，下面让我们准备以下的调料：{}'
-        reply = reply.format(dish, len(dish_menu['steps']),
-                             dish_menu['ingredientsReply'])
-        return_data.set_reply(reply)
-        #return_data.add_session_entry('dish', 2, 0, dish)
-        #return_data.add_properties('dish', dish)
+    dish = dish_menu['name']
+    reply = '好的，让我们开始做{}吧，总共有{}步，下面让我们准备以下的调料：{}'
+    reply = reply.format(dish, len(dish_menu['steps']),
+                         dish_menu['ingredientsReply'])
+    return_data.set_reply(reply)
 
     print(return_data.pack())
     return return_data.pack()
