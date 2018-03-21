@@ -41,16 +41,32 @@ def get_one_dish():
     # 打印平台发送的数据
     data.prints()
 
+    slotentities = data.slotEntities
+    slots = [slot for slot in slotentities]
+    slots = sorted(slots, key=lambda x: x['liveTime'])
+    slots_names = [slot['intentParameterName'] for slot in slots]
+    slots_values = [slot['standardValue'] for slot in slots]
+    # 若实体的 livetime 是0， 则代表这个实体是第一次被识别
+    new_slots = [slot for slot in slotentities if slot['liveTime'] == 0]
+    new_slots_names = [slot['intentParameterName'] for slot in new_slots]
+    new_slots_values = [slot['standardValue'] for slot in new_slots]
+    print('new slots:', str(list(zip(new_slots_names, new_slots_values))))
+
     # check user token
     if not data.token:
         # try with anonymous user
         user = User.get_user_by('access_token', data.sessionId, db)
+        reply = ''
         if not user:
-            new_anonymous_user = AnonymousUser(data.sessionId, db)
+            user = AnonymousUser(data.sessionId, db)
             reply = '您现在没有登录SuperMenu，自动分配一个游客账户登录，' \
-                    '当您一段时间没有使用本技能时，账户数据会清空，' \
-                    '现在你要做什么呢'
-            return ReturnData(reply=reply).pack()
+                    '当您一段时间没有使用本技能时，账户数据会清空。'
+            if 'dish' not in new_slots_names:
+                return ReturnData(reply=reply+'现在你要做什么呢').pack()
+        if 'dish' in new_slots_names:
+            dish = new_slots_values[new_slots_names.index('dish')]
+            return begin_cook(
+                user, dish, begin_sentence=reply)
     else:
         user = User.get_user_by('access_token', data.token, db)
         if not user:
@@ -58,6 +74,9 @@ def get_one_dish():
             print(user, data.token)
             return ReturnData(
                 reply='当前用户登录已失效或用户登录错误，请重新登录').pack()
+        if 'dish' in new_slots_names:
+            dish = new_slots_values[new_slots_names.index('dish')]
+            return begin_cook(user, dish)
 
     is_cooking = user.is_cooking()
     if is_cooking:
@@ -79,16 +98,6 @@ def get_one_dish():
         else:
             return ReturnData(
                 '你好，{}，你要做什么呢'.format(user.nickname)).pack()
-
-    slotentities = data.slotEntities
-    slots = [slot for slot in slotentities]
-    slots = sorted(slots, key=lambda x: x['liveTime'])
-    slots_names = [slot['intentParameterName'] for slot in slots]
-    slots_values = [slot['standardValue'] for slot in slots]
-    # 若实体的 livetime 是0， 则代表这个实体是第一次被识别
-    new_slots = [slot for slot in slotentities if slot['liveTime'] == 0]
-    new_slots_names = [slot['intentParameterName'] for slot in new_slots]
-    new_slots_values = [slot['standardValue'] for slot in new_slots]
 
     # check whether user want to continue cooking if user didn't complete one
     # if dish appears in new slots names, means user want to change cooking
@@ -145,7 +154,8 @@ def get_one_dish():
             return return_ingredient(dish, ingredient)
         elif '下一步' in data.utterance \
                 or '做好' in data.utterance \
-                or '好了' in data.utterance:
+                or '好了' in data.utterance \
+                or '做完了' in data.utterance:
             # user asking steps
             if last_step + 1 == len(menu['steps']):
                 reply = '你已经做完了{}'.format(dish)
@@ -188,7 +198,7 @@ def get_one_dish():
             return ReturnData(reply='不明白您的意思').pack()
 
 
-def begin_cook(user, dish):
+def begin_cook(user, dish, begin_sentence=''):
 
     # test whether dish is in db
     # if dish in db, set user's cooking ingo
@@ -207,10 +217,10 @@ def begin_cook(user, dish):
     if not menu:
         return ReturnData(reply='现在没有提供该菜肴菜谱').pack()
     else:
-        return prepare_menu(menu)
+        return prepare_menu(menu, begin_sentence=begin_sentence)
 
 
-def prepare_menu(dish_menu):
+def prepare_menu(dish_menu, begin_sentence=''):
 
     """ 情况 3: 用户第一次回答菜名，返回菜肴准备步骤
         参数:
@@ -223,8 +233,8 @@ def prepare_menu(dish_menu):
     return_data = ReturnData()
 
     dish = dish_menu['name']
-    reply = '好的，让我们开始做{}吧，总共有{}步，下面让我们准备以下的调料：{}'
-    reply = reply.format(dish, len(dish_menu['steps']),
+    reply = '{}好的，让我们开始做{}吧，总共有{}步，下面让我们准备以下的调料：{}'
+    reply = reply.format(begin_sentence, dish, len(dish_menu['steps']),
                          dish_menu['ingredientsReply'])
     return_data.set_reply(reply)
 
