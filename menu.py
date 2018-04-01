@@ -16,7 +16,13 @@ menu_dict_example = {
     'name': 'dish_name',
     'ingredients': 'dish_ingredients',
     'ingredientsReply': 'reply sentence of ingredients',
-    'steps': {'stepA': 'this is step A'}
+    'steps': {'stepA': 'this is step A'},
+    'energy': 'energy',
+    'protein': 'protein',
+    'axunge': 'axunge',
+    'pungency': 'pungency',
+    'salt': 'salt',
+    'vegetable': 'vegetable'
 }
 
 
@@ -37,6 +43,12 @@ def _to_dict(data):
         for one in menu['ingredients']
     }
     menu['ingredientsReply'] = '、'.join(data[7].strip().split('#'))
+    menu['energy'] = data[8] #能量
+    menu['protein'] = data[9] #蛋白质
+    menu['axunge'] = data[10] #脂肪
+    menu['pungency'] = data[11] #辛辣
+    menu['salt'] = data[12] #咸味
+    menu['vegetable'] = data[13] #蔬果
     return menu
 
 

@@ -1,7 +1,6 @@
 # !/usr/bin/python3
 # coding: utf-8
 
-
 import pymysql
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
@@ -10,6 +9,9 @@ from traceback import format_exc
 import json
 import time
 import uuid
+import datetime, calendar
+
+
 
 
 class DataBase():
@@ -49,6 +51,7 @@ class DataBase():
             raise e
 
     def query_all(self, sql):
+        print(sql)
         try:
             num = self.cursor.execute(sql)
         except (BrokenPipeError,
@@ -210,7 +213,9 @@ class User(UserMixin):
     def reset_cooking(self):
         return self.set_cooking('') and self.set_cooking_step('')
 
-    def finish_cooking(self, dish):
+    def finish_cooking(self, dish):   
+        cook_record_sql = "INSERT INTO `cooking-record` VALUES ('{user}', '{dish}', '{time}');"
+        self.db.execute(cook_record_sql.format(user = self.username,dish = dish,time =  datetime.datetime.today()))
         self.reset_cooking()
         sql = User.get_value_sql.format('cooked', 'username', self.username)
         cooked = self.db.query_all(sql)
@@ -225,6 +230,7 @@ class User(UserMixin):
             cooked = '#'.join(cooked)
             sql = User.set_value_sql.\
                     format('cooked', cooked, 'username', self.username)
+        
         return self.db.execute(sql)
 
     @staticmethod
