@@ -137,7 +137,7 @@ def get_one_dish():
             reply = '您现在没有登录SuperMenu，自动分配一个游客账户登录，' \
                     '当您一段时间没有使用本技能时，账户数据会清空。'
             if 'dish' not in new_slots_names:
-                return ReturnData(reply=reply + '现在你要做什么呢').pack()
+                return ReturnData(reply=reply+'现在你要做什么呢').pack()
         if 'dish' in new_slots_names:
             dish = new_slots_values[new_slots_names.index('dish')]
             return begin_cook(
@@ -274,6 +274,7 @@ def get_one_dish():
 
 
 def begin_cook(user, dish, begin_sentence=''):
+
     # test whether dish is in db
     # if dish in db, set user's cooking ingo
     # else, return no dish reply
