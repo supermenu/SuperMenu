@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% if authorize %}
+{% block navbar %}
+<div class="navbar navbar-inverse" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+            <text class="navbar-brand">SuperMenu</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% endif %}
+
+{% block scripts %}
+<script language="JavaScript">
+function addFamilyForm(){
+    var cfmn =parseInt(
+            document.getElementById("family_member_number").innerHTML)
+    var family_form =
+        '<br><div class="form-group">' +
+        `<label for="relationship_${cfmn}">关系</label>` +
+        `<input type="text" class="form-control" name="relationship_${cfmn}" placeholder="请输入该亲属与您的关系">` +
+        `<label for="sex_${cfmn}">性别</label>` +
+        `<input type="sex_${cfmn}" class="form-control" name="sex_${cfmn}" placeholder="请输入性别">` +
+        `<label for="age_${cfmn}">年龄</label>` +
+        `<input type="age_${cfmn}" class="form-control" name="age_${cfmn}" placeholder="请输入年龄">` +
+        '</div>';
+    $("p#familymembers").append(family_form);
+    document.getElementById("family_member_number").innerHTML = cfmn+1;
+}
+</script>
+<script src="https://cdn.staticfile.org/jquery/3.1.1/jquery.min.js"></script>
+{% endblock %}
+
+{% block content %} <!--具体内容-->
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class=flashes>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+            {% endif %}
+    {% endwith %}
+
+    <div class="container">
+        <form method="post">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" class="form-control" name="username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="passworld">密码</label>
+                <input type="password" class="form-control" name="password" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <label for="nickname">昵称</label>
+                <input type="text" class="form-control" name="nickname" placeholder="请输入昵称（由中文组成）">
+            </div>
+            <br>
+            <p id="familymembers">
+                <strong>
+                    家庭成员 <span id="family_member_number">0</span>
+                </strong>
+            </p>
+            <text name="button" class="btn btn-default" value='addForm' onclick="addFamilyForm()">添加家庭成员</text>
+            <button type="submit" name="button" class="btn btn-default" value='register'>注册</button>
+        </form>
+    </div>
+{% endblock %}

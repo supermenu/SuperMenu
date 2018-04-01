@@ -61,7 +61,7 @@ def login():
 @app.route('/register/', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
-        return render_template('login.html', register=True)
+        return render_template('register.html')
     username = request.form.get('username')
     password = request.form.get('password')
     nickname = request.form.get('nickname')
@@ -77,6 +77,66 @@ def register():
     elif not nickname:
         flash('请填写昵称')
         return render_template('login.html', register=True)
+    family_numbers = 0
+    family_members = []
+    for key in list(request.form.keys()):
+        if 'relationship_' in key:
+            index = int(key.replace('relationship_', ''))
+            c_key = 'relationship'
+            c_value = request.form.get(key)
+        elif 'age_' in key:
+            index = int(key.replace('age_', ''))
+            c_key = 'age'
+            c_value = int(request.form.get(key))
+        elif 'sex_' in key:
+            index = int(key.replace('sex_', ''))
+            c_key = 'sex'
+            c_value = request.form.get(key)
+            c_value = 'm' if '男' in c_value else 'f'
+        else:
+            continue
+        while len(family_members) < index+1:
+            family_members.append(dict())
+        family_members[index][c_key] = c_value
+
+    for member in family_members:
+        age = member['age']
+        sex = member['sex']
+        if age <= 5:
+            need_energy = 1400 if sex == 'm' else 1335
+            need_protein = 47.5
+            need_fat = 50 if sex == 'm' else 47.5
+        elif 6 <= age <= 12:
+            need_energy = 1985 if sex == 'm' else 1865
+            need_protein = 65
+            need_fat = 60 if sex == 'm' else 56.5
+        elif 13 <= age <= 17:
+            need_energy = 2850 if sex == 'm' else 2400
+            need_protein = 85 if sex == 'm' else 80
+            need_fat = 86 if sex == 'm' else 72.5
+        elif 18 <= age <= 49:
+            need_energy = 2550 if sex == 'm' else 2200
+            need_protein = 77.5 if sex == 'm' else 67.5
+            need_fat = 70 if sex == 'm' else 60.5
+        elif 50 <= age <= 59:
+            need_energy = 2450 if sex == 'm' else 1950
+            need_protein = 77.5 if sex == 'm' else 67.5
+            need_fat = 67.5 if sex == 'm' else 53.5
+        elif 60 <= age <= 69:
+            need_energy = 2050 if sex == 'm' else 1900
+            need_protein = 75 if sex == 'm' else 65
+            need_fat = 56.5 if sex == 'm' else 52.5
+        elif 70 <= age <= 79:
+            need_energy = 2000 if sex == 'm' else 1800
+            need_protein = 75 if sex == 'm' else 65
+            need_fat = 55 if sex == 'm' else 49.5
+        elif 80 <= age:
+            need_energy = 1900 if sex == 'm' else 1700
+            need_protein = 75 if sex == 'm' else 65
+            need_fat = 52.5 if sex == 'm' else 46.5
+        member['need_protein'] = need_protein
+        member['need_energy'] = need_energy
+        member['need_fat'] = need_fat
 
     new_user = User(username, db, nickname=nickname)
     if new_user.exists():
@@ -84,6 +144,13 @@ def register():
         return render_template('login.html', register=True)
     else:
         new_user.password(password)
+        sql = "INSERT INTO `SuperMenu`.`family_member` (`user`, `relationship`, `sex`, `age`, `need_energy`, `need_protein`, `need_axunge`) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}');"
+        for member in family_members:
+            db.execute(sql.format(
+                username, member['relationship'], member['sex'],
+                member['age'], member['need_energy'],
+                member['need_protein'], member['need_fat']
+            ))
         flash('{} 注册成功'.format(username))
         return redirect(url_for('login'))
 
