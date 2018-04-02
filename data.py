@@ -34,6 +34,9 @@ class RequestData(object):
         # liveTime:             int, 该slot已生存时间（会话轮数）
         # createTimeStamp:      int, 该slot产生的时间点
         self.slotEntities = requestData['slotEntities']
+
+        '''
+        该字段已被和谐
         # ------------------ conversationRecords --------------------
         # type: list, 此session内的对话记录，按照时间倒序存放，最近的放在前面
         # botId:                str, 应用ID，来自于创建的应用或者技能
@@ -48,15 +51,20 @@ class RequestData(object):
         #                       RESULT：正常完成交互的阶段并给出回复
         #                       CONFIRM：期待确认
         # slotEntities:         slotEntities
-        self.conversationRecords = requestData['conversationRecords']
+        '''
+        self.conversationRecords = requestData.get('conversationRecords', [])
+        '''
+        该字段已被和谐
         # -------------------- sessionEntries -----------------------
         # timeToLive:   int, 生存时间（会话轮数）
         # liveTime:     int, 已经历时间(会话轮数）
         # timeStamp:    int, 产生时间
         # value:        str, 具体的值
-        self.sessionEntries = requestData['sessionEntries']
-
+        '''
+        self.sessionEntries = requestData.get('sessionEntries',[])
+        
         self.token = requestData.get('token', None)
+        
 
     def get_last_intent(self):
         # 获得最后一条记录的实体
@@ -76,7 +84,7 @@ class RequestData(object):
         return self.get_record_at(index)['replyUtterance']
 
     def prints(self):
-        print('##############################################################')
+        print('#############################################################################')
         print('create time: ' + self.createTime)
         print('session id:' + self.sessionId)
         print('token:' + str(self.token))
@@ -84,32 +92,34 @@ class RequestData(object):
         print('intent: ' + self.intentName)
         print('slot:')
         for entity in self.slotEntities:
+            print('\t-----------------------------------')
             print('\tintent parameter name:' + entity['intentParameterName'])
             print('\toriginal value: ' + entity['originalValue'])
             print('\tstandard value: ' + entity['standardValue'])
             print('\tlive time: ' + str(entity['liveTime']))
             print('\t-----------------------------------')
-        print('records:')
-        for record in self.conversationRecords:
-            print('\tintent: ' + record['intentName'])
-            print('\tutterance: ' + record['userInputUtterance'])
-            print('\treply: ' + record.get('replyUtterance', 'None'))
-            print('\tresult type: ' + record['resultType'])
-            print('\tslots: ' + \
-                  ' '.join([
-                      e['intentParameterName']+'-'+e['originalValue']+'-'+str(e['liveTime'])
-                      for e in record['slotEntities']
-                  ])
-            )
-            print('\t-----------------------------------')
-        print('session entries:')
-        for entry, entry_value in self.sessionEntries.items():
-            print('\t' + entry + ': ')
-            for key, value in entry_value.items():
-                print('\t\t' + key + ': ' + str(value))
-            print('\t-----------------------------------')
+        # print('records:')
+        # for record in self.conversationRecords:
+        #     print('\tintent: ' + record['intentName'])
+        #     print('\tutterance: ' + record['userInputUtterance'])
+        #     print('\treply: ' + record.get('replyUtterance', 'None'))
+        #     print('\tresult type: ' + record['resultType'])
+        #     print('\tslots: ' + \
+        #           ' '.join([
+        #               e['intentParameterName']+'-'+e['originalValue']+'-'+str(e['liveTime'])
+        #               for e in record['slotEntities']
+        #           ])
+        #     )
+        #     print('\t-----------------------------------')
+        # print('session entries:')
+        # for entry, entry_value in self.sessionEntries.items():
+        #     print('\t' + entry + ': ')
+        #     for key, value in entry_value.items():
+        #         print('\t\t' + key + ': ' + str(value))
+        #     print('\t-----------------------------------')
         print('properties:')
         print('\t' + str(self.requestData))
+        print('#############################################################################')
 
 
 class ReturnData(object):
