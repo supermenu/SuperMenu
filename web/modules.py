@@ -29,12 +29,12 @@ class DataBase():
         self.charset = charset
         self.db = pymysql.connect(self.host, self.user, self.passwd,
                                   self.database, charset=self.charset)
-        self.cursor = self.db.cursor()
         self.last_error_time = -1
 
     def execute(self, sql):
         try:
-            self.cursor.execute(sql)
+            cursor = self.db.cursor()
+            cursor.execute(sql)
             self.db.commit()
             return True
         except (BrokenPipeError,
@@ -53,7 +53,8 @@ class DataBase():
     def query_all(self, sql):
         print(sql)
         try:
-            num = self.cursor.execute(sql)
+            cursor = self.db.cursor()
+            num = cursor.execute(sql)
         except (BrokenPipeError,
                 pymysql.err.InterfaceError, pymysql.err.OperationalError) as e:
             print(str(e))
@@ -66,14 +67,13 @@ class DataBase():
             raise e
         if num == 0:
             print('num=0:')
-            print(str(self.cursor.fetchall()))
+            print(str(cursor.fetchall()))
             return []
-        return self.cursor.fetchall()
+        return cursor.fetchall()
 
     def reconnect(self, re_execute, sql):
         self.db = pymysql.connect(self.host, self.user, self.passwd,
                                   self.database, charset=self.charset)
-        self.cursor = self.db.cursor()
         re_execute(sql)
 
     def disconnect(self):
