@@ -181,7 +181,8 @@ class User(UserMixin):
             return nickname
 
     def is_cooking(self):
-        return self.get_cooking().get('success', False)
+        cooking = self.get_cooking().get('success', False)
+        return cooking
 
     def get_cooking(self):
         cookings = self.db.query_all(
@@ -210,10 +211,61 @@ class User(UserMixin):
             'cooking_step', step, 'username', self.username)
         return self.db.execute(sql)
 
+    def set_recommend(self,dishs):
+        sql = User.set_value_sql.format(
+            'recommend', dishs, 'username', self.username)
+        return self.db.execute(sql)
+
+    def get_recommend(self):
+        if not self.is_exist:
+            return ''
+        else:
+            recommend = self.db.query_all(
+                User.get_value_sql.format(
+                    'recommend', 'username', self.username
+                )
+            )
+            recommend = recommend[0][0]
+            return recommend
+
+    def set_basket(self,dishs):
+        sql = User.set_value_sql.format(
+            'basket', dishs, 'username', self.username)
+        return self.db.execute(sql)
+
+    def get_basket(self):
+        if not self.is_exist:
+            return ''
+        else:
+            basket = self.db.query_all(
+                User.get_value_sql.format(
+                    'basket', 'username', self.username
+                )
+            )
+            basket = basket[0][0]
+            return basket
+
+    def set_ask_status(self,ask_status):
+        sql = User.set_value_sql.format(
+            'ask_status', ask_status, 'username', self.username)
+        return self.db.execute(sql)
+
+    def get_ask_status(self):
+        if not self.is_exist:
+            return ''
+        else:
+            ask_status = self.db.query_all(
+                User.get_value_sql.format(
+                    'ask_status', 'username', self.username
+                )
+            )
+            ask_status = ask_status[0][0]
+            return ask_status
+
     def reset_cooking(self):
         return self.set_cooking('') and self.set_cooking_step('')
-
-    def finish_cooking(self, dish):   
+        
+    def finish_cooking(self, dish):
         cook_record_sql = "INSERT INTO `cooking-record` VALUES ('{user}', '{dish}', '{time}');"
         self.db.execute(cook_record_sql.format(user = self.username,dish = dish,time =  datetime.datetime.today()))
         self.reset_cooking()
@@ -230,7 +282,6 @@ class User(UserMixin):
             cooked = '#'.join(cooked)
             sql = User.set_value_sql.\
                     format('cooked', cooked, 'username', self.username)
-        
         return self.db.execute(sql)
 
     @staticmethod
