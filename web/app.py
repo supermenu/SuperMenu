@@ -39,8 +39,8 @@ def login():
         return render_template('login.html', login=True)
     username = request.form.get('username')
     password = request.form.get('password')
-    nickname = request.form.get('nickname')
     action = request.form.get('button')
+
     if action == 'toregister':
         return redirect(url_for('register'))
     if not username:
@@ -58,6 +58,45 @@ def login():
         flash('用户名或密码无效')
         return render_template('login.html')
 
+def get_healthy_stats(sex, age, height):
+    std_weight = height - 105
+    if age <= 5:
+        need_energy = 1400 if sex == 'm' else 1335
+        need_protein = 47.5
+        need_fat = 50 if sex == 'm' else 47.5
+    elif 6 <= age <= 12:
+        need_energy = 1985 if sex == 'm' else 1865
+        need_protein = 65
+        need_fat = 60 if sex == 'm' else 56.5
+    elif 13 <= age <= 17:
+        need_energy = 2850 if sex == 'm' else 2400
+        need_protein = 85 if sex == 'm' else 80
+        need_fat = 86 if sex == 'm' else 72.5
+    elif 18 <= age <= 49:
+        need_energy = 2550 if sex == 'm' else 2200
+        need_protein = 77.5 if sex == 'm' else 67.5
+        need_fat = 70 if sex == 'm' else 60.5
+    elif 50 <= age <= 59:
+        need_energy = 2450 if sex == 'm' else 1950
+        need_protein = 77.5 if sex == 'm' else 67.5
+        need_fat = 67.5 if sex == 'm' else 53.5
+    elif 60 <= age <= 69:
+        need_energy = 2050 if sex == 'm' else 1900
+        need_protein = 75 if sex == 'm' else 65
+        need_fat = 56.5 if sex == 'm' else 52.5
+    elif 70 <= age <= 79:
+        need_energy = 2000 if sex == 'm' else 1800
+        need_protein = 75 if sex == 'm' else 65
+        need_fat = 55 if sex == 'm' else 49.5
+    elif 80 <= age:
+        need_energy = 1900 if sex == 'm' else 1700
+        need_protein = 75 if sex == 'm' else 65
+        need_fat = 52.5 if sex == 'm' else 46.5
+    need_energy *= std_weight
+    need_protein *= std_weight
+    need_fat *= std_weight
+    return {'ne': need_energy, 'np': need_protein, 'nf': need_fat}
+
 @app.route('/register/', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
@@ -65,18 +104,40 @@ def register():
     username = request.form.get('username')
     password = request.form.get('password')
     nickname = request.form.get('nickname')
+    age = request.form.get('age')
+    sex = request.form.get('sex')
+    height = request.form.get('height')
+    weight = request.form.get('weight')
     action = request.form.get('button')
     if action == 'tologin':
         return redirect(url_for('login'))
     if not username:
         flash('请填写用户名')
-        return render_template('login.html', register=True)
+        return render_template('register.html')
     elif not password:
         flash('请填写密码')
-        return render_template('login.html', register=True)
+        return render_template('register.html')
     elif not nickname:
         flash('请填写昵称')
-        return render_template('login.html', register=True)
+        return render_template('register.html')
+    elif not sex:
+        flash('请填写性别')
+        return render_template('register.html')
+    elif not age:
+        flash('请填写年龄')
+        return render_template('register.html')
+    elif not height:
+        flash('请填写身高')
+        return render_template('register.html')
+    elif not weight:
+        flash('请填写体重')
+        return render_template('register.html')
+    age = int(age)
+    height = float(height)
+    weight = float(weight)
+    sex = 'm' if '男' in sex else 'f'
+    self_infos = get_healthy_stats(sex, age, height)
+
     family_numbers = 0
     family_members = []
     for key in list(request.form.keys()):
@@ -93,50 +154,40 @@ def register():
             c_key = 'sex'
             c_value = request.form.get(key)
             c_value = 'm' if '男' in c_value else 'f'
+        elif 'height_' in key:
+            index = int(key.replace('height_', ''))
+            c_key = 'height'
+            c_value = float(request.form.get(key))
+        elif 'weight_' in key:
+            index = int(key.replace('weight_', ''))
+            c_key = 'weight'
+            c_value = float(request.form.get(key))
         else:
             continue
         while len(family_members) < index+1:
             family_members.append(dict())
         family_members[index][c_key] = c_value
 
+    family_members.append({
+        'relationship': '本人',
+        'age': age,
+        'sex': sex,
+        'height': height,
+        'weight': weight,
+        'need_protein': self_infos['np'],
+        'need_energy': self_infos['ne'],
+        'need_fat': self_infos['nf']
+    })
+
     for member in family_members:
         age = member['age']
         sex = member['sex']
-        if age <= 5:
-            need_energy = 1400 if sex == 'm' else 1335
-            need_protein = 47.5
-            need_fat = 50 if sex == 'm' else 47.5
-        elif 6 <= age <= 12:
-            need_energy = 1985 if sex == 'm' else 1865
-            need_protein = 65
-            need_fat = 60 if sex == 'm' else 56.5
-        elif 13 <= age <= 17:
-            need_energy = 2850 if sex == 'm' else 2400
-            need_protein = 85 if sex == 'm' else 80
-            need_fat = 86 if sex == 'm' else 72.5
-        elif 18 <= age <= 49:
-            need_energy = 2550 if sex == 'm' else 2200
-            need_protein = 77.5 if sex == 'm' else 67.5
-            need_fat = 70 if sex == 'm' else 60.5
-        elif 50 <= age <= 59:
-            need_energy = 2450 if sex == 'm' else 1950
-            need_protein = 77.5 if sex == 'm' else 67.5
-            need_fat = 67.5 if sex == 'm' else 53.5
-        elif 60 <= age <= 69:
-            need_energy = 2050 if sex == 'm' else 1900
-            need_protein = 75 if sex == 'm' else 65
-            need_fat = 56.5 if sex == 'm' else 52.5
-        elif 70 <= age <= 79:
-            need_energy = 2000 if sex == 'm' else 1800
-            need_protein = 75 if sex == 'm' else 65
-            need_fat = 55 if sex == 'm' else 49.5
-        elif 80 <= age:
-            need_energy = 1900 if sex == 'm' else 1700
-            need_protein = 75 if sex == 'm' else 65
-            need_fat = 52.5 if sex == 'm' else 46.5
-        member['need_protein'] = need_protein
-        member['need_energy'] = need_energy
-        member['need_fat'] = need_fat
+        height = member['height']
+        weight = member['weight']
+        stats = get_healthy_stats(sex, age, height)
+        member['need_protein'] = stats['np']
+        member['need_energy'] = stats['ne']
+        member['need_fat'] = stats['nf']
 
     new_user = User(username, db, nickname=nickname)
     if new_user.exists():

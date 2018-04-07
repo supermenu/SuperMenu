@@ -164,7 +164,7 @@ def get_one_dish():
 
     # ====================  ask whether continue  ============================
     # check whether user is cooking sth before
-    if '超级菜谱' in data.utterance:
+    if '菜谱大师' in data.utterance:
         if is_cooking:
             # ask user whether continue cooking
             reply = '你好， {}，你要继续做没做完的 {} 吗'. \
