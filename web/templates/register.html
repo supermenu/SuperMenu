@@ -19,6 +19,7 @@ function addFamilyForm(){
             document.getElementById("family_member_number").innerHTML)
     var family_form =
         '<br><div class="form-group">' +
+        `<p><strong>家庭成员 ${cfmn+1}</strong></p>` +
         `<label for="relationship_${cfmn}">关系</label>` +
         `<input type="text" class="form-control" name="relationship_${cfmn}" placeholder="请输入该亲属与您的关系">` +
         `<label for="sex_${cfmn}">性别</label>` +
@@ -81,9 +82,7 @@ function addFamilyForm(){
             </div>
             <br>
             <p id="familymembers">
-                <strong>
-                    家庭成员 <span id="family_member_number">0</span>
-                </strong>
+                <p hidden id="family_member_number">0</p>
             </p>
             <text name="button" class="btn btn-default" value='addForm' onclick="addFamilyForm()">添加家庭成员</text>
             <button type="submit" name="button" class="btn btn-default" value='register'>注册</button>
