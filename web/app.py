@@ -58,43 +58,38 @@ def login():
         flash('用户名或密码无效')
         return render_template('login.html')
 
-def get_healthy_stats(sex, age, height):
-    std_weight = height - 105
+def get_healthy_stats(sex, age, height,weight):
+    if sex == 'm':
+        need_energy = \
+            (66.5 + (13.7 * weight) + (5 * height) -  (6.8 * age)) * 1.3
+    else:
+        need_energy = \
+            (655 + (9.56 * weight) + (1.85 * height) -  (4.68 * age)) * 1.3
     if age <= 5:
-        need_energy = 1400 if sex == 'm' else 1335
         need_protein = 47.5
-        need_fat = 50 if sex == 'm' else 47.5
+        need_fat = need_energy * 0.325 / 9
     elif 6 <= age <= 12:
-        need_energy = 1985 if sex == 'm' else 1865
         need_protein = 65
-        need_fat = 60 if sex == 'm' else 56.5
+        need_fat = need_energy * 0.275 / 9
     elif 13 <= age <= 17:
-        need_energy = 2850 if sex == 'm' else 2400
         need_protein = 85 if sex == 'm' else 80
-        need_fat = 86 if sex == 'm' else 72.5
+        need_fat = need_energy * 0.275 / 9
     elif 18 <= age <= 49:
-        need_energy = 2550 if sex == 'm' else 2200
         need_protein = 77.5 if sex == 'm' else 67.5
-        need_fat = 70 if sex == 'm' else 60.5
+        need_fat = need_energy * 0.325 / 9
     elif 50 <= age <= 59:
-        need_energy = 2450 if sex == 'm' else 1950
         need_protein = 77.5 if sex == 'm' else 67.5
-        need_fat = 67.5 if sex == 'm' else 53.5
+        need_fat = need_energy * 0.25 / 9
     elif 60 <= age <= 69:
-        need_energy = 2050 if sex == 'm' else 1900
         need_protein = 75 if sex == 'm' else 65
-        need_fat = 56.5 if sex == 'm' else 52.5
+        need_fat = need_energy * 0.25 / 9
     elif 70 <= age <= 79:
-        need_energy = 2000 if sex == 'm' else 1800
         need_protein = 75 if sex == 'm' else 65
-        need_fat = 55 if sex == 'm' else 49.5
+        need_fat = need_energy * 0.25 / 9
     elif 80 <= age:
-        need_energy = 1900 if sex == 'm' else 1700
         need_protein = 75 if sex == 'm' else 65
-        need_fat = 52.5 if sex == 'm' else 46.5
-    need_energy *= std_weight
-    need_protein *= std_weight
-    need_fat *= std_weight
+        need_fat = need_energy * 0.25 / 9
+
     return {'ne': need_energy, 'np': need_protein, 'nf': need_fat}
 
 @app.route('/register/', methods=['GET', 'POST'])
