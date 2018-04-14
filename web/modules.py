@@ -4,6 +4,7 @@
 import pymysql
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
+import hashlib
 from flask_login import UserMixin
 from traceback import format_exc
 import json
@@ -120,19 +121,31 @@ class User(UserMixin):
     def password(self):
         raise AttributeError('password is not a readable attribute')
 
+    def generate_password(self,password):
+        return hashlib.md5(password.encode('utf-8')).hexdigest()
+    
     #@password.setter
     def password(self, password):
         """ save user name, id and password hash to db """
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = self.generate_password(password)
         self.db.execute(
             User.add_user_sql.format(
                 self.username, self.password_hash, self.id, self.nickname)
         )
 
+
+
     def verify_password(self, password):
         if self.password_hash is None:
             return False
-        return check_password_hash(self.password_hash, password)
+        return self.check_password(self.password_hash, password)
+
+    def check_password(self,password_hash,password):
+        if password_hash == hashlib.md5(password.encode('utf-8')).hexdigest()\
+            or check_password_hash(password_hash,password):
+            return True
+        else:
+            return False
 
     def get_password_hash(self):
         """try to get password hash from file.
