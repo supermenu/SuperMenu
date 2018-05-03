@@ -32,10 +32,7 @@ def is_answer_positive(utterance):
     return False
 
 def is_answer_negative(utterance):
-    if  ('不要'  in utterance ) \
-        or ('不是'  in utterance ) \
-        or ('不用'  in utterance ) \
-        or ('不做'  in utterance ) :
+    if  '不'  in utterance  :
         return True
     return False
 
@@ -184,6 +181,9 @@ def recommend():
     else:
         return ReturnData(reply=reply+'主人，您想我推荐您怎样的菜呢？',resultType='CONFIRM').pack()
 
+    flavor_value = dishs_attributes.get('flavor','%')
+    need_time_value = dishs_attributes.get('need_time','%')
+    easiness_value = dishs_attributes.get('easiness','%')
     #获取当前推荐的做菜记录
     recommend_dishs = user.get_recommend()
     print('给用户推荐的菜品如下:\n'+str(recommend_dishs))
@@ -193,19 +193,17 @@ def recommend():
         #根据需求提取菜谱属性
         #recommend_dishs记录菜谱名称
         #recommend记录菜谱的名称，口味，难度，耗时
-        flavor_value = dishs_attributes.get('flavor','%')
-        need_time_value = dishs_attributes.get('need_time','%')
-        easiness_value = dishs_attributes.get('easiness','%')
         recommend = get_attributes(flavor_value,need_time_value,easiness_value)
         if not recommend:
             return ReturnData(reply=reply+'当前尚未找到相关菜品，主人可以选择重新推荐').pack()
-        reply += '好的主人，当前一共搜索到{0}道菜，为您推荐{1}，口味：{2}  难度：{3},耗时：{4}请问你现在要做吗?'.format(len(recommend),recommend[0]['dish'],\
-                                                                                recommend[0]['flavor'],recommend[0]['easiness'],recommend[0]['need_time'])
+        reply += '好的主人，当前一共搜索到{0}道菜，为您推荐{1}，口味：{2}  难度：{3},耗时：{4}。，如果您不喜欢这道菜，您可以说 换一道，如果您现在想做这道菜，可以说 我想做{5}'\
+                    .format(len(recommend),recommend[0]['dish'],recommend[0]['flavor'],recommend[0]['easiness'],recommend[0]['need_time'],recommend[0]['dish'])
+                                                                                
         recommend_dishs = ''
         for dish in recommend:
             recommend_dishs += dish['dish'] + '#'
         user.set_recommend(recommend_dishs)
-        return ReturnData(reply=reply, resultType='ASK_INF').pack()
+        return ReturnData(reply=reply).pack()
 
     #还未推荐用户做菜
     if not recommend_dishs:
@@ -214,18 +212,8 @@ def recommend():
         else:
             return ReturnData('主人想干嘛呢').pack()
     else:
-        #用户开始做菜
-        if is_answer_positive(data.utterance):
-            returndata =  begin_cook(user,str(recommend_dishs).split('#')[0])
-            recommend_dishs = ''
-            user.set_recommend(recommend_dishs)
-            return returndata
         #用户想换菜
         if '换' in data.utterance:
-            recommend = []
-            flavor_value = dishs_attributes.get('flavor','%')
-            need_time_value = dishs_attributes.get('need_time','%')
-            easiness_value = dishs_attributes.get('easiness','%')
             recommend = get_attributes(flavor_value,need_time_value,easiness_value)
             #total_num:查询到的菜谱的数量
             #recommend_nmu:目前给用户推荐的菜谱数量
@@ -237,15 +225,15 @@ def recommend():
                 recommend_dishs = ''
                 user.set_recommend(recommend_dishs)
                 return ReturnData(reply='主人，本宝宝已经没有更多你推荐啦，主人想做其他的可以和我说  重新推荐哦').pack()
-            reply = '好的主人，为您推荐{1}，口味：{2}  难度：{3},耗时：{4}请问你现在要做吗?'.format(len(recommend),recommend[index]['dish'],\
-                                                                                recommend[index]['flavor'],recommend[index]['easiness'],recommend[index]['need_time'])
+            reply = '好的主人，当前一共搜索到{0}道菜，为您推荐{1}，口味：{2}  难度：{3},耗时：{4}。，如果您不喜欢这道菜，您可以说 换一道，如果您现在想做这道菜，可以说 我想做{5}'\
+            .format(len(recommend),recommend[index]['dish'],recommend[index]['flavor'],recommend[index]['easiness'],recommend[index]['need_time'],recommend[index]['dish'])
             recommend_dishs = ''
             for dish in recommend[index:]:
                 recommend_dishs += dish['dish'] + '#'
             user.set_recommend(recommend_dishs)
             return ReturnData(reply=reply,resultType='CONFIRM').pack()
-
-        return ReturnData(reply='主人，本宝宝不太明白呀').pack()
+        else:
+            return ReturnData(reply='主人，本宝宝不太明白呀').pack()
 
 
 @app.route('/get-one-dish/', methods=['POST'])
