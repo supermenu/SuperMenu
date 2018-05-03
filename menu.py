@@ -68,7 +68,26 @@ def get_step_index_in_menu(dish, step):
     else:
         return -1
 
+def tansform_time(need_time_value):
+    time_10 = ['时间花费短', '时间消耗短', '时间短']
+    time_20 = ['时间花费较短', '时间消耗较短', '速度较快', '速度快', '时间比较快']
+    time_30 = ['时间花费适中', '时间消耗适中', '速度适中']
+    time_40 = ['时间较多', '时间花费较多', '时间消耗较多', '时间花费比较多', '时间消耗比较多']
+    time_60 = ['时间花费长', '时间消耗长', '时间久', '时间花费久', '时间消耗久']
+    if need_time_value in time_10:
+        return '十分钟'
+    if need_time_value in time_20:
+        return '二十分钟'
+    if need_time_value in time_30:
+        return '半小时'
+    if need_time_value in time_40:
+        return '四十分钟'
+    if need_time_value in time_60:
+        return '一个小时'
+    return need_time_value
+
 def get_attributes(flavor_value = '%',need_time_value = '%',easiness_value = '%'):
+    need_time_value = tansform_time(need_time_value)
     fetch_menus = db.query_all(fetch_by_keys_sql.format(flavor_value = flavor_value,need_time_value =\
                                                     need_time_value,easiness_value = easiness_value))
     menus = []
@@ -80,3 +99,5 @@ def get_attributes(flavor_value = '%',need_time_value = '%',easiness_value = '%'
         menu['easiness'] = _to_dict(fetch_menu)['easiness']
         menus.append(menu)
     return menus
+
+
