@@ -5,6 +5,7 @@
 from flask import Flask
 from flask import request
 import datetime, calendar
+import multiprocessing
 
 from data import ReturnData, RequestData, number
 from menu import *
@@ -12,6 +13,7 @@ from cooking_record import *
 from family_member import *
 from web.modules import User, DataBase, AnonymousUser
 import random
+
 
 app = Flask(__name__)
 db = DataBase()
@@ -21,6 +23,7 @@ trigger_word = '菜谱大师'
 
 def is_answer_positive(utterance):
     if '好的' in utterance \
+            or '记录' in utterance\
             or '好' in utterance \
             or ('不要' not in utterance and '要' in utterance) \
             or ('不是' not in utterance and '是' in utterance) \
@@ -224,7 +227,7 @@ def recommend():
             if index == total_num:
                 recommend_dishs = ''
                 user.set_recommend(recommend_dishs)
-                return ReturnData(reply='主人，本宝宝已经没有更多你推荐啦，主人想做其他的可以和我说  重新推荐哦').pack()
+                return ReturnData(reply='主人，本宝宝已经想不到同类型的菜了，您让我想想，一会儿再来问我吧').pack()
             reply = '好的主人，当前一共搜索到{0}道菜，为您推荐{1}，口味：{2}  难度：{3},耗时：{4}。，如果您不喜欢这道菜，您可以说 换一道，如果您现在想做这道菜，可以说 我想做{5}'\
             .format(len(recommend),recommend[index]['dish'],recommend[index]['flavor'],recommend[index]['easiness'],recommend[index]['need_time'],recommend[index]['dish'])
             recommend_dishs = ''
@@ -291,7 +294,7 @@ def get_one_dish():
 
 
     #处理询问状态
-    ask_reply = deal_ask(user,new_slots_names,data,last_step)
+    ask_reply = deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values)
     if ask_reply:
         return ask_reply
 
@@ -311,9 +314,9 @@ def get_one_dish():
     # check whether user want to continue cooking if user didn't complete one
     # if dish appears in new slots names, means user want to change cooking
     if 'dish' in new_slots_names:
+         # user want to change what is cooking
         dish = new_slots_values[new_slots_names.index('dish')]
         return begin_cook(user, dish)   
-    
 
     # ====================  ask whether continue  ============================
     # check whether user is cooking sth before
@@ -349,13 +352,6 @@ def get_one_dish():
     else:
         # user is cooking now
 
-        if 'dish' in new_slots_names:
-            # user want to change what is cooking
-            print('user want to change cooking')
-            dish = new_slots_values[new_slots_names.index('dish')]
-            # TODO: if new dish not exists
-            #       ask user whether continue original dish
-            return begin_cook(user, dish)
 
         menu = get_menu(dish)
         if 'ingredients' in new_slots_names:
@@ -369,7 +365,7 @@ def get_one_dish():
             # user asking steps
             if last_step + 1 == len(menu['steps']):
                 reply = '你已经做完了{}，'.format(dish)
-                reply += '请问主人是否要记录该菜？'
+                reply += '请问主人是否要记录该菜？您可以回答 是 或者 不是 哦~'
                 user.set_ask_status('record#'+dish)
             else:
                 reply = menu['steps'][last_step + 1]
@@ -422,12 +418,14 @@ def begin_cook(user, dish, begin_sentence='',basket = False):
         menu = None
     else:
         menu = get_menu(dish)
-    
+
     print('user {} begins to cook {}'.format(user.username, dish))
 
-    if not menu:
-        return ReturnData(reply='现在没有提供该菜肴菜谱').pack()
-    else:  
+    if not menu or not menu['salt']:
+        if not menu:
+            multiprocessing.Process(target = crawler_menu, args = (dish,)).start()
+        return ReturnData(reply='主人，对不起，我还不会做这道菜，等我去问问我的程序员爸爸，您可以明天再来问我').pack()
+    else:
         if basket:
             #已经菜篮子有菜，直接开始做
             return prepare_menu(menu)
@@ -436,11 +434,12 @@ def begin_cook(user, dish, begin_sentence='',basket = False):
             user.set_cooking_step(-1)
             #菜篮子功能对游客隐藏
             if user.nickname == '游客':
-                 return ReturnData(reply='好的主人，这就准备开始教你做{0}。'.format(dish)).pack()
+                return prepare_menu(menu)
+                # return ReturnData(reply='好的主人，这就准备开始教你做{0}。'.format(dish)).pack()
             else:
                 user.set_ask_status('basket#'+dish)
                 return ReturnData(reply='好的主人，这就准备开始教您做{0}，是否要将该菜加入菜篮子呀？您可以回答 是或者 不是 哦'.format(dish)).pack()
-        
+
 
 
 def prepare_menu(dish_menu, begin_sentence=''):
@@ -455,7 +454,8 @@ def prepare_menu(dish_menu, begin_sentence=''):
     return_data = ReturnData()
 
     dish = dish_menu['name']
-    reply = '{}好的，让我们开始做{}吧，总共有{}步，下面让我们准备以下的调料：{}'
+    reply = '{}好的，让我们开始做{}吧，总共有{}步，' \
+            '您可以通过 上一步、下一步、或者 重复这一步 来使用菜谱，下面让我们准备以下的调料：{}'
     reply = reply.format(begin_sentence, dish, len(dish_menu['steps']),
                          dish_menu['ingredientsReply'])
     return_data.set_reply(reply)
@@ -610,7 +610,7 @@ def diet_analysis(dishs, user):
     return analysis_report
 
 
-def deal_ask(user,new_slots_names,data,last_step):
+def deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values):
      #ask_status 询问状态
     #dish_status 询问状态中菜
     ask_status_with_dish = user.get_ask_status()
@@ -629,9 +629,15 @@ def deal_ask(user,new_slots_names,data,last_step):
             if last_step == -1:
                 reply = '好的，你刚刚在准备调料'
             else:
-                reply = '好的，你已经做到了第 {} 步'.format(
-                    last_step + 1
-                )
+                if last_step == (len(menu['steps']) - 1):
+                    reply = '好的，你已经做到了最后一步：{}'.format(
+                        menu['steps'][-1]
+                    )
+                else:
+                    reply = '好的，你已经做到了第 {} 步，现在让我们进行第 {} 步，{}'.format(
+                        last_step + 1, last_step + 2, menu['steps'][last_step + 1]
+                    )
+                    user.set_cooking_step(last_step + 1)
             return ReturnData(reply=reply).pack()
         elif is_answer_negative(data.utterance):
             user.reset_cooking()
@@ -642,12 +648,22 @@ def deal_ask(user,new_slots_names,data,last_step):
     #是否记录当前完成菜品？
     if ask_status == 'record':
         if is_answer_positive(data.utterance):
-            user.set_ask_status('')
+            user.set_ask_status('score#'+dish_status)
             user.finish_cooking(dish_status)
             user.set_basket('')
-            return ReturnData(reply=dish_status + '记录成功！').pack()
+            return ReturnData(reply=dish_status + '记录成功！主人~，请您再为这道菜的烹饪情况打分吧！满分5分，您可以回答 1 分 ，2分 5分等哦').pack()
         else:
-            return ReturnData(reply='主人您是否要记录该菜呢？').pack()
+            return ReturnData(reply='主人您是否要记录{}呢？'.format(dish_status)).pack()
+
+    if ask_status == 'score':
+        if 'score' in slots_names:
+            save_score(dish_status,slots_values)
+            user.set_ask_status('')
+        elif is_answer_negative(data.utterance):
+            user.set_ask_status('')
+            return ReturnData(reply='好吧主人,已为你跳过评分环节').pack()
+        else:
+            return ReturnData('主人~，请您再为这道菜的烹饪情况打分吧！满分5分，您可以回答 1 分 ，2分 5分等哦').pack()
 
     #是否加入菜篮子？
     if ask_status == 'basket':

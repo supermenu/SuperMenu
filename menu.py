@@ -4,14 +4,24 @@
 
 import pymysql
 from web.modules import DataBase
-
+from bs4 import BeautifulSoup
+import requests
+import os
+import urllib.request
+import re
 
 db = DataBase()
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/23.0'}
 fetch_all_menus_sql = 'select * from `menus`'
 fetch_all_menu_names_sql = 'select `name` from `menus`'
 fetch_by_key_sql = "select * from `menus` where `{key}` = '{value}'"
 fetch_by_keys_sql = "select * from `menus` where `flavor` like '{flavor_value}' \
                     and `need_time` like '{need_time_value}' and `easiness` like '{easiness_value}'"
+add_menu_sql =  "INSERT INTO `menus` (`name`, `need_time`, `easiness`, `steps`,`ingredients`) " \
+                "VALUES ('{}', '{}', '{}', '{}','{}');"
+update_score_sql = 'UPDATE `menus` SET `score` = `score` + {} WHERE `name` = {}'
+update_numbers_sql = 'UPDATE `menus` SET `numbers` = `numbers` + 1 WHERE `name` = {}'
+
 
 menu_dict_example = {
     'name': 'dish_name',
@@ -42,7 +52,7 @@ def _to_dict(data):
     menu['ingredients'] = {
         one.split(':')[0]: one.split(':')[1]
         for one in menu['ingredients'] if one
-    }
+}
     menu['ingredientsReply'] = '、'.join(data[7].strip().split('#'))
     menu['energy'] = data[8] #能量
     menu['protein'] = data[9] #蛋白质
@@ -101,3 +111,55 @@ def get_attributes(flavor_value = '%',need_time_value = '%',easiness_value = '%'
     return menus
 
 
+
+def get_url(dish):
+    html = requests.get('https://home.meishichina.com/search/' + dish, headers=headers)
+    soup = BeautifulSoup(html.content,"lxml")
+    url_dish = soup.find(href=re.compile("recipe-"))['href']
+    return url_dish
+
+def get_dish(dish):
+    url = get_url(dish)
+    ingredients = ''
+    steps = ''
+    need_time = ''
+    easiness = ''
+    if url:
+        html = requests.get(url, headers=headers)
+        html_doc = html.text
+        soup = BeautifulSoup(html_doc, 'lxml')
+        particulars = soup.find_all('fieldset',class_ = 'particulars')
+        #爬取食材，category_s1为食材名，category_s2为食材用量
+        for particular in particulars:
+            category_s1 = particular.find_all('span', class_='category_s1')
+            category_s2 = particular.find_all('span', class_='category_s2')
+            for s1,s2 in zip(category_s1,category_s2):
+                ingredients += '#' + s1.text + ':' + s2.text
+        ingredients = ingredients.strip().replace('\r','').replace('\n','')
+
+        #爬取食材的耗时和难度
+        span = soup.find(text = "耗时")
+        need_time = span.parent.find_previous_sibling().text.strip().replace('廿','二十')
+        span = soup.find(text = "难度")
+        easiness = span.parent.find_previous_sibling().text.strip()
+
+        divs = soup.find_all('div',class_ = 'recipeStep_word')
+        for div in divs:
+            steps += '#' + div.text[1:]
+        return ingredients,need_time,easiness,steps
+    else:
+        return None,None,None,None
+
+def crawler_menu(dish):
+    print('正在将爬取菜谱：' + dish)
+    ingredients,need_time,easiness,steps = get_dish(dish)
+    if ingredients:
+        print( dish + '正在写入数据库')
+        db.execute(add_menu_sql.format(dish,need_time, easiness, steps,ingredients))
+    else:
+        print('爬取失败！')
+    
+
+def save_score(dish,score):
+    db.execute(update_score_sql.format(dish,score))
+    db.execute(update_numbers_sql.format(dish))
