@@ -34,6 +34,7 @@ class DataBase():
 
     def execute(self, sql):
         try:
+            print(sql)
             cursor = self.db.cursor()
             cursor.execute(sql)
             self.db.commit()
