@@ -20,13 +20,14 @@ class DataBase():
     default_user = 'root'
     default_password = 'sql2017..'
     default_database = 'SuperMenu'
+    default_host = '118.24.109.25'
 
     def __init__(self, user=None, passwd=None, database=None,
-                 host='localhost', charset='utf8'):
+                 host=None, charset='utf8'):
         self.user = DataBase.default_user if not user else user
         self.passwd = DataBase.default_password if not passwd else passwd
         self.database = DataBase.default_database if not database else database
-        self.host = host
+        self.host = DataBase.default_host if not host else host
         self.charset = charset
         self.db = pymysql.connect(self.host, self.user, self.passwd,
                                   self.database, charset=self.charset)

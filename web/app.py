@@ -29,9 +29,62 @@ def default():
 @app.route('/index/')
 def index():
     print(current_user)
-    return render_template(
-        'index.html',
-        user=getattr(current_user, 'username', None))
+    return redirect(url_for('menus', page='1'))
+    # return render_template(
+    #     'index.html',
+    #     user=getattr(current_user, 'username', None))
+
+@app.route('/apk/')
+def get_apk():
+    return redirect(url_for('static', filename='菜单.apk'))
+
+@app.route('/menus/')
+def menus():
+    page = request.args.get('page', 0)
+    if not page:
+        return 'Invalid'
+    return render_template('index.html')
+
+each_page_menus = 15
+menu_pics_dir = ''
+def get_menu_data():
+    db = DataBase()
+    fetch_all_menu_names_sql = 'select `name` from `menus`'
+    menu_names = db.query_all(fetch_all_menu_names_sql)
+    menu_names = [one[0] for one in menu_names]
+    # get pic
+    static_dir = os.path.join('.', 'static')
+    menu_pics = os.listdir(static_dir)
+    menus = []
+    for menu_name in menu_names:
+        if menu_name+'.png' in menu_pics:
+            menu_pic = url_for("static", filename=menu_name+'.png')
+        else:
+            continue
+            # menu_pic = ''
+        menus.append({'name': menu_name, 'pic': menu_pic})
+    return menus
+
+@app.route('/get-menu-page-count/')
+def menu_page_count():
+    global each_page_menus
+    menus = get_menu_data()
+    if len(menus) < each_page_menus:
+        return '1'
+    else:
+        return str(len(menus) // each_page_menus)
+
+@app.route('/get-menu-data/')
+def get_menu_page_data():
+    global each_page_menus
+    page = int(request.args.get('page', 0))
+    if not page:
+        return 'Invalid'
+    else:
+        page = int(page)
+    menus = get_menu_data()
+    menu_page_data = menus[each_page_menus*(page-1): each_page_menus*page]
+    return Response(json.dumps(menu_page_data), mimetype='application/json')
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():

@@ -1,14 +1,148 @@
 {% extends "base.html" %}
 
+{% block scripts %}
+<script src="https://cdn.staticfile.org/jquery/3.1.1/jquery.min.js"></script>
+<script>
+/* 图片显示代码来源：https://www.jianshu.com/p/d8ef091ec8c7 */
+    $(document).ready(function(){ /*当页面文档加载完成之后*/
+        var $wrap=$('#wrap');     /*获取页面元素 wrap 存储到变量之中*/
+        var width=$wrap.find('li').outerWidth(true);
+        auto();  /*函数名称+()*/
+            /*获取li的实际宽度外边距+边框+宽度+内边距*/
+        $(window).resize(function(){ /*当改变浏览器窗口大小时触发*/
+            auto();
+        });
+        function auto(){
+            var wW=$(window).width(); /*获取浏览器窗口的宽度*/
+            /*总宽度 / 个体宽度 =个体数量 */
+            var num=Math.floor(wW/width)-1;
+            /*Math.floor  向下取整 每一行的数量*/
+            $wrap.width(num*width);/*让wrap的宽度=数量* 个体宽度*/
+        }
+    });
+</script>
+<script>
+    //获取url中的参数
+    function getUrlParam(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)"); //构造一个含有目标参数的正则表达式对象
+        var r = window.location.search.substr(1).match(reg);  //匹配目标参数
+        if (r != null) return unescape(r[2]); return null; //返回参数值
+    }
+
+    function createXmlHttpRequest(){
+        var xmlhttp;
+        if (window.XMLHttpRequest)
+        {// code for IE7+, Firefox, Chrome, Opera, Safari
+            xmlhttp=new XMLHttpRequest();
+        }
+        else if(window.ActiveXObject)
+        {// code for IE6, IE5
+            xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+        }
+        return xmlhttp;
+    }
+
+    function initMenuDataAndPage(){
+        var xmlhttp_menu = createXmlHttpRequest();
+        var xmlhttp_page = createXmlHttpRequest();
+        xmlhttp_menu.onreadystatechange=function()
+        {
+            if (xmlhttp_menu.readyState==4 && xmlhttp_menu.status==200)
+            {
+                var menus_data = JSON.parse(xmlhttp_menu.responseText);
+                pics_html = '';
+                for (var i=0; i<menus_data.length; i++) {
+                    pic_src = menus_data[i].pic;
+                    pic_name = menus_data[i].name;
+                    pics_html += `<li><img src='${pic_src}' width='237' height='190' alt='${pic_name}'>${pic_name}</li>`;
+                }
+                pics_html += '<br><br>';
+                $("ul#menus").append(pics_html);
+                console.log(pics_html);
+            }
+        }
+        xmlhttp_page.onreadystatechange=function()
+        {
+            if (xmlhttp_page.readyState==4 && xmlhttp_page.status==200)
+            {
+                var page_cnt = xmlhttp_page.responseText;
+                var current_page = getUrlParam('page');
+                page_cnt = parseInt(page_cnt);
+                current_page = parseInt(current_page);
+                if (current_page<=1)
+                    page_html = '';
+                else
+                    page_html = `<li><a href="/menus/?page=${current_page-1}">&laquo;</a></li>`;
+                for (var i=1; i<page_cnt+1; i++)
+                {
+                    page_html += `<li><a href="/menus/?page=${i}">${i}</a></li>`;
+                }
+                if (!(current_page >= page_cnt))
+                    page_html += `<li><a href="/menus/?page=${current_page+1}">&raquo;</a></li>`;
+                $("ul#page").append(page_html);
+            }
+        }
+        var current_page = getUrlParam('page');
+        xmlhttp_menu.open('GET', '/get-menu-data/?page='+current_page, true);
+        xmlhttp_menu.send();
+        xmlhttp_page.open('GET', '/get-menu-page-count/', true);
+        xmlhttp_page.send();
+    }
+
+    window.onload=initMenuDataAndPage();
+
+</script>
+
+{% endblock %}
+
 {% block page_content %}
 
 {% if user %}
+<!--
 <div class="username">
     <p>Welcome Back, {{ user }}</p>
     <p><a href={{url_for('logout')}}>Logout</a></p>
 </div>
+-->
 {% else %}
-    <p><a href={{url_for('login')}}>Login</a></p>
+    <!--<p><a href={{url_for('login')}}>Login</a></p>-->
 {% endif %}
 
+<style type='text/css'>
+    *{margin:0;padding:0;}  /* *通配符选择器 为所有的标签 清除默认外边距*/
+    body{
+        /*background:#434343;*/
+    }
+    #wrap{
+        width:1000px;  /*宽度*/
+        height:auto; /*高度*/
+        /* background:#434343; /*背景颜色*/
+        margin:0 auto;  /*利用margin居中*/
+        /*overflow:hidden; /*超出部分隐藏掉*/
+    }
+    #wrap ul li{
+        list-style:none; /*清除li小圆点*/
+        float:left;    /*元素向左浮动*/
+        margin:10px;   /*设置元素距离上下左右间距为10*/
+        width:237px;
+        height:190px;
+        box-shadow:0 0 4px #fff; /*盒子阴影 横向位移 纵向位移 影子大小 影子颜色 */
+        border-radius:5px;
+    }
+    #wrap ul li img{
+        display:block; /*使img标签成块级元素展示*/
+        border-radius:5px;
+    }
+    #wrap ul{width:100%;padding:10px}
+</style>
+
+<div id='wrap'>
+    <ul id='menus'>   <!-- ul li 无序列表-->
+    </ul>
+</div>
+
+
+<ul class="pagination" id="page">
+
+</ul>
 {% endblock %}
