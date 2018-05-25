@@ -706,6 +706,7 @@ def deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values):
         elif is_answer_negative(data.utterance):
             user.reset_cooking()
             user.set_ask_status('')
+            user.set_basket('')
             return ReturnData(reply='好的主人，你想做什么菜呢').pack()
         return ReturnData(reply='主人您是否要继续做{}呢'.format(dish_status)).pack()
 
@@ -731,9 +732,11 @@ def deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values):
             index = len(temp) - temp.index('score') - 1
             save_score(dish_status,slots_values[index])
             user.set_ask_status('')
+            user.set_basket('')
             return ReturnData(reply='打分成功！主人还想要本宝宝做什么呢？').pack()
         elif is_answer_negative(data.utterance):
             user.set_ask_status('')
+            user.set_basket('')
             return ReturnData(reply='好吧主人,已为你跳过评分环节').pack()
         else:
             return ReturnData('主人~，请您再为这道菜的烹饪情况打分吧！满分5分，您可以回答 1 分 ，2分 5分等哦').pack()
