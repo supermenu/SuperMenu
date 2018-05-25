@@ -3,7 +3,7 @@
 
 
 from flask import Flask
-from flask import request
+from flask import request, abort, url_for, redirect
 import datetime, calendar
 import multiprocessing
 
@@ -51,6 +51,14 @@ def saying_without_cooking(utterance):
 @app.route('/', methods=['GET'])
 def index():
     return 'Test :)'
+
+@app.route('/aligenie/<filename>/', methods=['GET'])
+def autuorize(filename):
+    static_dir = 'static'
+    if os.path.exists(os.path.join(static_dir, filename)):
+        return redirect(url_for('static', filename=filename))
+    else:
+        return abort(404)
 
 
 @app.route('/diets/', methods=['POST'])
@@ -295,7 +303,7 @@ def get_one_dish():
 
     #处理询问状态
     ask_reply = deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values)
-    if ask_reply:
+    if ask_reply: 
         return ask_reply
 
     if is_cooking:
@@ -316,6 +324,7 @@ def get_one_dish():
     if 'dish' in new_slots_names:
          # user want to change what is cooking
         dish = new_slots_values[new_slots_names.index('dish')]
+        user.set_ask_status('')
         return begin_cook(user, dish)   
 
     # ====================  ask whether continue  ============================
@@ -342,9 +351,10 @@ def get_one_dish():
             return ReturnData(reply='主人，你还想要做什么菜呀').pack()
         if not new_slots:
             return ReturnData(reply='主人，你还想要做什么菜呀').pack()
-        if 'dish' in slots_names:
+        if 'dish' == slots_names[len(slots_names) - 1]:
             # user reply dish name
             dish = slots_values[slots_names.index('dish')]
+
             return begin_cook(user, dish)
         else:
             # user reply no dish name
@@ -404,6 +414,60 @@ def get_one_dish():
             return ReturnData(reply='这一步做好了跟我说哦').pack()
         else:
             return ReturnData(reply='不明白您的意思').pack()
+
+
+@app.route('/add-seasoning/', methods=['POST'])
+def add_seasoning():
+    data = RequestData(request.data)
+    data.prints()
+    return ReturnData(reply='好的').pack()
+
+@app.route('/ingredients_search/', methods=['POST'])
+def ingredients_search():
+    """ 意图 "材料搜菜谱" 入口 """
+    global trigger_word
+
+    # 获得平台发送数据，包装为RequestData类型
+    data = RequestData(request.data)
+    data.utterance = data.utterance.replace(trigger_word, '')
+    # 打印平台发送的数据
+    data.prints()
+
+    slotentities = data.slotEntities
+    slots = [slot for slot in slotentities]
+    slots = sorted(slots, key=lambda x: x['liveTime'])
+    slots_names = [slot['intentParameterName'] for slot in slots]
+    slots_values = [slot['standardValue'] for slot in slots]
+    # 若实体的 livetime 是0， 则代表这个实体是第一次被识别
+    new_slots = [slot for slot in slotentities if slot['liveTime'] == 0]
+    new_slots_names = [slot['intentParameterName'] for slot in new_slots]
+    new_slots_values = [slot['standardValue'] for slot in new_slots]
+    print('new slots:', str(list(zip(new_slots_names, new_slots_values))))
+
+    temp = slots_names
+    temp.reverse()
+    index = len(temp) - temp.index('ingredients') - 1
+    ingredients = slots_values[index]
+    menus = get_menu_by_ingredients(ingredients)
+    if menus:
+        print('ingredients' + ':' + ingredients)
+        print('可以做的菜' , menus)
+        reply = ingredients + '可以做'
+        count = 0
+        for menu in menus:
+            reply += menu + ','
+            count += 1
+            if count > 5:
+                break
+        reply += '等菜哦。主人您可以通过我想做加菜名开始做菜'
+        if len(menus) == 1:
+            reply = '目前我只会{}一道菜，但我会继续努力的，如果主人您现在要做这道菜可以说我想做{}'.format(menus[0],menus[0])
+    else:
+        reply ='我现在还不会要用到{}做菜，但我会努力学习，您可以换一种材料问我'.format(ingredients)
+    return ReturnData(reply=reply).pack()
+
+
+
 
 
 def begin_cook(user, dish, begin_sentence='',basket = False):
@@ -614,13 +678,13 @@ def deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values):
      #ask_status 询问状态
     #dish_status 询问状态中菜
     ask_status_with_dish = user.get_ask_status()
+    
     if ask_status_with_dish:
         ask_status = ask_status_with_dish.split('#')[0]
         dish_status = ask_status_with_dish.split('#')[1]
     else:
-        ask_status = dish_status =None
-
-
+        ask_status = dish_status = ''
+    print('用户当前状态：'+ask_status)
     #是否继续做菜？
     if ask_status == 'continue' and 'dish' not in new_slots_names:
         if is_answer_positive(data.utterance):
@@ -643,7 +707,7 @@ def deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values):
             user.reset_cooking()
             user.set_ask_status('')
             return ReturnData(reply='好的主人，你想做什么菜呢').pack()
-        return ReturnData(reply='主人您是否要继续做该菜呢').pack()
+        return ReturnData(reply='主人您是否要继续做{}呢'.format(dish_status)).pack()
 
     #是否记录当前完成菜品？
     if ask_status == 'record':
@@ -652,13 +716,22 @@ def deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values):
             user.finish_cooking(dish_status)
             user.set_basket('')
             return ReturnData(reply=dish_status + '记录成功！主人~，请您再为这道菜的烹饪情况打分吧！满分5分，您可以回答 1 分 ，2分 5分等哦').pack()
+        elif is_answer_negative(data.utterance):
+            user.set_ask_status('')
+            user.finish_cooking(dish_status)
+            user.set_basket('')
+            return ReturnData(reply='好的主人，已经为你跳过记录环节哦，主人还想要做什么呢？').pack()
         else:
             return ReturnData(reply='主人您是否要记录{}呢？'.format(dish_status)).pack()
 
     if ask_status == 'score':
         if 'score' in slots_names:
-            save_score(dish_status,slots_values)
+            temp = slots_names
+            temp.reverse()
+            index = len(temp) - temp.index('score') - 1
+            save_score(dish_status,slots_values[index])
             user.set_ask_status('')
+            return ReturnData(reply='打分成功！主人还想要本宝宝做什么呢？').pack()
         elif is_answer_negative(data.utterance):
             user.set_ask_status('')
             return ReturnData(reply='好吧主人,已为你跳过评分环节').pack()
@@ -700,13 +773,5 @@ def deal_ask(user,new_slots_names,data,last_step,slots_names,slots_values):
     
 
 
-
-@app.route('/add-seasoning/', methods=['POST'])
-def add_seasoning():
-    data = RequestData(request.data)
-    data.prints()
-    return ReturnData(reply='好的').pack()
-
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=6000)
+    app.run(host='0.0.0.0', port=5555)
