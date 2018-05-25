@@ -17,11 +17,11 @@ fetch_all_menu_names_sql = 'select `name` from `menus`'
 fetch_by_key_sql = "select * from `menus` where `{key}` = '{value}'"
 fetch_by_keys_sql = "select * from `menus` where `flavor` like '{flavor_value}' \
                     and `need_time` like '{need_time_value}' and `easiness` like '{easiness_value}'"
-add_menu_sql =  "INSERT INTO `menus` (`name`, `need_time`, `easiness`, `steps`,`ingredients`) " \
-                "VALUES ('{}', '{}', '{}', '{}','{}');"
-update_score_sql = 'UPDATE `menus` SET `score` = `score` + {} WHERE `name` = {}'
-update_numbers_sql = 'UPDATE `menus` SET `numbers` = `numbers` + 1 WHERE `name` = {}'
-
+add_menu_sql =  "INSERT INTO `menus` (`name`, `need_time`, `easiness`, `steps`,`ingredients`,`energy`,`protein`,`axunge`) " \
+                "VALUES ('{}', '{}', '{}', '{}','{}','{}','{}','{}');"
+update_score_sql = "UPDATE `menus` SET `score` = `score` + '{}' WHERE `name` = '{}'"
+update_numbers_sql = "UPDATE `menus` SET `numbers` = `numbers` + 1 WHERE `name` = '{}'"
+fetch_by_keys_ingredients = "select name from `menus` where `ingredients` like '%{}%'"
 
 menu_dict_example = {
     'name': 'dish_name',
@@ -62,6 +62,13 @@ def _to_dict(data):
     menu['vegetable'] = data[13] #蔬果
     return menu
 
+def get_menu_by_ingredients(ingredients):
+    menus_temp =  db.query_all(fetch_by_keys_ingredients.format(ingredients))
+    menus = []
+    if menus_temp:
+        for menu in menus_temp:
+            menus.append(menu[0])
+    return menus
 
 def get_existed_menus():
     menu_names = db.query_all(fetch_all_menu_names_sql)
@@ -110,6 +117,40 @@ def get_attributes(flavor_value = '%',need_time_value = '%',easiness_value = '%'
         menus.append(menu)
     return menus
 
+def get_nutritional(ingredient,weight):
+    html = requests.get('http://www.boohee.com/food/search?keyword=' + ingredient, headers=headers)
+    html_doc_search = html.text
+    soup = BeautifulSoup(html_doc_search, "lxml")
+    url = soup.find('li',class_='item clearfix').find('div').find('a',href = re.compile("/shiwu/"))['href']
+    url = 'http://www.boohee.com' + url
+    html = urllib.request.urlopen(url).read().decode('utf-8')
+    soup = BeautifulSoup(html, "lxml")
+    dds = soup.find('div',class_ = 'nutr-tag margin10').find_all('span',class_ = 'dd')
+    dts = soup.find('div',class_ = 'nutr-tag margin10').find_all('span',class_ = 'dt')
+    energy = 0
+    protein = 0
+    axunge = 0
+    for dd,dt in zip(dds,dts):
+        dd = dd.text
+        dt = dt.text
+        if dt == '热量(大卡)':
+            energy = float(dd)  * float(weight)/100
+        if dt == '脂肪(克)':
+            axunge = float(dd) * float(weight)/100
+        if dt == '蛋白质(克)':
+            protein = float(dd) * float(weight)/100
+    return energy,protein,axunge
+
+def get_url_haodou(dish):
+    html = requests.get('https://m.haodou.com/recipe/search/?keyword=' + dish,headers=headers)
+    html_doc_search = html.text
+    soup = BeautifulSoup(html_doc_search,"lxml")
+    url_dish = soup.find(href=re.compile("/recipe/[0-9]"))
+    if url_dish:
+        return 'https://www.haodou.com' + url_dish['href']
+    else:
+        return None
+
 
 
 def get_url(dish):
@@ -119,47 +160,79 @@ def get_url(dish):
     return url_dish
 
 def get_dish(dish):
-    url = get_url(dish)
+    url_meishi = get_url_meishi(dish)
+    url_haodou = get_url_haodou(dish)
     ingredients = ''
     steps = ''
     need_time = ''
     easiness = ''
-    if url:
-        html = requests.get(url, headers=headers)
+    energy = 0
+    protein = 0
+    axunge = 0
+    flag = 1
+    if url_meishi:
+        html = requests.get(url_meishi, headers=headers)
         html_doc = html.text
         soup = BeautifulSoup(html_doc, 'lxml')
-        particulars = soup.find_all('fieldset',class_ = 'particulars')
-        #爬取食材，category_s1为食材名，category_s2为食材用量
-        for particular in particulars:
-            category_s1 = particular.find_all('span', class_='category_s1')
-            category_s2 = particular.find_all('span', class_='category_s2')
-            for s1,s2 in zip(category_s1,category_s2):
-                ingredients += '#' + s1.text + ':' + s2.text
-        ingredients = ingredients.strip().replace('\r','').replace('\n','')
-
         #爬取食材的耗时和难度
         span = soup.find(text = "耗时")
         need_time = span.parent.find_previous_sibling().text.strip().replace('廿','二十')
         span = soup.find(text = "难度")
         easiness = span.parent.find_previous_sibling().text.strip()
+    if url_haodou:
+        print(url_haodou)
+        html = requests.get(url_haodou, headers=headers)
+        html_doc = html.text
+        soup = BeautifulSoup(html_doc, 'lxml')
+        # 爬取 食材 主料
+        full_text_ingredients = soup.findAll("li", {"class": "ingtmgr"})
+        for text in full_text_ingredients:
+            # 食材
+            ingredients += '#' + text.p.text + ':'
+            # 用量
+            ingredients += text.span.text
+            if 'g' not in text.span.text:
+                flag = energy = protein = axunge = 0
+            if flag:
+                energy_,protein_,axunge_ =get_nutritional(text.p.text,text.span.text[:-1])
+                energy += energy_
+                protein += protein_
+                axunge += axunge_
+        # 爬取 食材 辅料
+        print(energy, axunge, protein)
+        full_text_accessories = soup.findAll("li", {"class": "ingtbur"})
+        for text in full_text_accessories:
+            # 食材
+            ingredients += '#' + text.p.text + ':'
+            # 用量
+            ingredients += text.span.text
 
-        divs = soup.find_all('div',class_ = 'recipeStep_word')
-        for div in divs:
-            steps += '#' + div.text[1:]
-        return ingredients,need_time,easiness,steps
-    else:
-        return None,None,None,None
+        # 爬取详细步骤
+        full_text_step_text = soup.findAll("p", {"class": "sstep"})
+        for text in full_text_step_text:
+            steps += '#' + text.text[2:]
+        return ingredients,need_time,easiness,steps,energy,protein,axunge
+    return None,None,None,None,None,None,None
+
+def get_url_meishi(dish):
+    html = requests.get('https://home.meishichina.com/search/' + dish, headers=headers)
+    soup = BeautifulSoup(html.content,"lxml")
+    url_dish = soup.find(href=re.compile("recipe-"))['href']
+    return url_dish
+
 
 def crawler_menu(dish):
     print('正在将爬取菜谱：' + dish)
-    ingredients,need_time,easiness,steps = get_dish(dish)
-    if ingredients:
+    ingredients,need_time,easiness,steps,energy,protein,axunge = get_dish(dish)
+    if ingredients and need_time:
         print( dish + '正在写入数据库')
-        db.execute(add_menu_sql.format(dish,need_time, easiness, steps,ingredients))
+        db.execute(add_menu_sql.format(dish,need_time, easiness, steps,ingredients,energy,protein,axunge))
     else:
         print('爬取失败！')
     
 
 def save_score(dish,score):
-    db.execute(update_score_sql.format(dish,score))
+    print(dish)
+    print(score)
+    db.execute(update_score_sql.format(score,dish))
     db.execute(update_numbers_sql.format(dish))
